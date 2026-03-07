@@ -1,4 +1,3 @@
-type="module"
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -81,14 +80,17 @@ onAuthStateChanged(auth, (user) => {
                 state.wallet = data.wallet || { cash: 0, bank: 0 };
                 localStorage.setItem('rp_history', JSON.stringify(data.history || []));
                 
-                document.getElementById('user-display').innerText = state.user;
+                const userDisplay = document.getElementById('user-display');
+                if(userDisplay) userDisplay.innerText = state.user;
                 
                 // Ocultar Login
-                document.getElementById('sec-login').classList.add('hidden');
+                const secLogin = document.getElementById('sec-login');
+                if(secLogin) secLogin.classList.add('hidden');
                 
                 // Si la app acaba de abrirse (Lobby oculto), mostrar el Lobby
-                if(document.getElementById('sec-lobby').classList.contains('hidden')) {
-                    document.getElementById('sec-lobby').classList.remove('hidden');
+                const secLobby = document.getElementById('sec-lobby');
+                if(secLobby && secLobby.classList.contains('hidden')) {
+                    secLobby.classList.remove('hidden');
                 }
 
                 // Actualizar interfaz
@@ -99,8 +101,10 @@ onAuthStateChanged(auth, (user) => {
         });
     } else {
         // El usuario NO ESTÁ logueado. Forzar pantalla de Login.
-        document.getElementById('sec-login').classList.remove('hidden');
-        document.getElementById('sec-lobby').classList.add('hidden');
+        const secLogin = document.getElementById('sec-login');
+        const secLobby = document.getElementById('sec-lobby');
+        if(secLogin) secLogin.classList.remove('hidden');
+        if(secLobby) secLobby.classList.add('hidden');
     }
 });
 
