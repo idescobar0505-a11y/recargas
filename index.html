@@ -6,10 +6,41 @@
     <title>Rapi Recargas ULTRA - Cloud PRO</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/frontend/css/style.css">
+    <link rel="stylesheet" href="./css/style.css">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        /* CORRECCIÓN QUIRÚRGICA: BLOQUEO DE BARRAS Y SCROLL FLUIDO */
+        body { overflow: hidden; } /* Evita que el navegador entero haga scroll */
+        
+        .app-shell {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden !important;
+        }
+        
+        .top-bar {
+            flex-shrink: 0; /* La barra superior nunca se encoge ni se mueve */
+            z-index: 10;
+        }
+        
+        .scroll-area {
+            flex: 1; /* Toma el espacio restante */
+            overflow-y: auto; /* Solo esta parte hace scroll */
+            padding-bottom: 100px; /* Espacio para que la nav bar no tape el contenido */
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #main-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            z-index: 9999 !important;
+            transform: none !important; /* Inmunidad contra bugs de GPU */
+        }
+    </style>
 </head>
 <body>
 
@@ -19,35 +50,25 @@
         <i class="fas fa-cloud-upload-alt"></i> Guardado correctamente
     </div>
 
-    <section id="sec-login" class="app-shell hidden">
-        <div id="login-section" style="flex: 1; overflow-y: auto;">
+    <section id="sec-login" class="app-shell">
+        <div id="login-section" class="scroll-area" style="display: flex; justify-content: center; align-items: center; padding: 20px;">
             <div class="flip-container" id="login-flipper">
                 
                 <div class="glass-panel">
                     <div class="logo-3d"><i class="fas fa-bolt"></i></div>
                     <h2 style="margin-bottom: 20px;">Rapi Recargas</h2>
                     
-                    <button class="btn-mega btn-google" onclick="loginWithGoogle()" style="margin-bottom:20px;">
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
-                        INICIAR CON GOOGLE
-                    </button>
-
-                    <div style="display:flex; align-items:center; margin:10px 0; opacity:0.6; width:100%;">
-                        <div style="flex:1; height:1px; background:var(--text);"></div>
-                        <span style="padding:0 10px; font-size:0.8rem;">O clásico</span>
-                        <div style="flex:1; height:1px; background:var(--text);"></div>
-                    </div>
-
                     <div class="input-floating" id="grp-log-user">
                         <input type="text" id="log-user" placeholder="Usuario" autocomplete="off">
                     </div>
                     <div class="input-floating" id="grp-log-pass">
-                        <input type="password" id="log-pass" placeholder="Contraseña">
+                        <input type="password" id="log-pass" placeholder="Contraseña" autocomplete="off">
                     </div>
                     <button class="btn-mega" onclick="handleLogin()">INICIAR SESIÓN</button>
                     <div class="switch-link" onclick="toggleFlip()">¿No tienes cuenta? Regístrate</div>
+                    
                     <div style="margin-top: 20px; font-size: 0.8rem; opacity: 0.7;">
-                        <i class="fas fa-lock"></i> Datos en PostgreSQL y Firebase
+                        <i class="fas fa-server"></i> Conectado a Base de Datos
                     </div>
                 </div>
 
@@ -55,30 +76,23 @@
                     <div class="logo-3d"><i class="fas fa-user-plus"></i></div>
                     <h2 style="margin-bottom: 20px;">Crear Cuenta</h2>
                     
-                    <button class="btn-mega btn-google" onclick="loginWithGoogle()" style="margin-bottom:15px;">
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
-                        REGISTRO GOOGLE
-                    </button>
-
                     <div class="input-floating">
                         <input type="text" id="reg-name" placeholder="Nombre y Apellido" autocomplete="off">
                     </div>
-
                     <div class="input-floating">
                         <input type="text" id="reg-user" placeholder="Crear Usuario" autocomplete="off">
                     </div>
                     <div class="input-floating">
-                        <input type="password" id="reg-pass" placeholder="Crear Contraseña">
+                        <input type="password" id="reg-pass" placeholder="Crear Contraseña" autocomplete="off">
                     </div>
                     <button class="btn-mega" onclick="handleRegister()" style="background: linear-gradient(135deg, #00C851 0%, #007E33 100%);">REGISTRARME</button>
                     <div class="switch-link" onclick="toggleFlip()">Volver al Login</div>
                     
                     <div id="reg-success-overlay" class="reg-success-overlay hidden">
                         <div style="animation: bounceIn 0.8s var(--ease-elastic);">
-                            <i class="fas fa-check-circle fa-4x" style="color: var(--success); margin-bottom:20px; filter: drop-shadow(0 5px 10px rgba(0,200,81,0.3));"></i>
+                            <i class="fas fa-check-circle fa-4x" style="color: var(--success); margin-bottom:20px;"></i>
                         </div>
                         <h2 style="color:var(--success)">¡Cuenta Creada!</h2>
-                        <p style="margin: 10px 0;">Tus datos están seguros.</p>
                         <button onclick="finishRegAnimation()" class="btn-mega" style="margin-top:20px; width: auto; padding: 10px 30px;">IR AL LOGIN</button>
                     </div>
                 </div>
@@ -91,7 +105,7 @@
         <div class="intro-card">
             <i class="fas fa-shield-alt fa-3x" style="color:var(--primary); margin-bottom:20px;"></i>
             <h3>Datos En la Nube</h3>
-            <p style="margin: 20px 0; color:var(--text-light);">Tus ventas y saldo ahora están encriptados y guardados en nuestra plataforma segura.</p>
+            <p style="margin: 20px 0; color:var(--text-light);">Tus ventas ahora persisten en tu dispositivo y se sincronizan en la base de datos.</p>
             <button class="btn-mega" onclick="nextIntroSlide()">CONTINUAR</button>
         </div>
     </section>
@@ -106,7 +120,7 @@
     </section>
 
     <section id="sec-lobby" class="app-shell hidden">
-        <div class="top-bar" style="flex-shrink: 0; z-index: 10;">
+        <div class="top-bar">
             <div class="welcome-text">
                 <h1>Hola, <br><span id="user-display">Usuario</span></h1>
             </div>
@@ -130,19 +144,13 @@
             </div>
             
             <div class="stats-scroller">
-                <div class="stat-box">
-                    <h3 id="stat-today">L.0</h3><p>Ganancia Hoy</p>
-                </div>
-                <div class="stat-box">
-                    <h3 id="stat-month">L.0</h3><p>Ganancia Mes</p>
-                </div>
-                <div class="stat-box">
-                    <h3 id="stat-total">L.0</h3><p>Total Ventas</p>
-                </div>
+                <div class="stat-box"><h3 id="stat-today">L.0</h3><p>Ganancia Hoy</p></div>
+                <div class="stat-box"><h3 id="stat-month">L.0</h3><p>Ganancia Mes</p></div>
+                <div class="stat-box"><h3 id="stat-total">L.0</h3><p>Total Ventas</p></div>
             </div>
         </div>
 
-        <div class="ops-container" style="flex: 1; overflow-y: auto; padding-bottom: 120px;">
+        <div class="scroll-area ops-container">
             <button class="op-btn-pro" onclick="openSales('Tigo')">
                 <img src="https://i.ibb.co/4w5JPJfq/square-tigo.png" alt="Tigo">
                 <div class="op-overlay op-tigo-overlay"></div>
@@ -154,33 +162,23 @@
                 <span>CLARO</span>
             </button>
         </div>
-
-        <div class="bottom-nav">
-            <div class="nav-item active" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
-            <div class="nav-item" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
-            <div class="nav-item" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
-            <div class="nav-item" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
-            <div class="nav-item" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
-        </div>
     </section>
 
     <section id="sec-sales" class="app-shell hidden">
-        <div class="top-bar" style="background: var(--bg); flex-shrink: 0; z-index: 10; display: flex; align-items: center; gap: 15px; padding-bottom: 20px;">
+        <div class="top-bar" style="background: var(--bg); display: flex; align-items: center; gap: 15px; padding-bottom: 20px;">
             <button onclick="navTo('lobby')" style="background:none; border:none; font-size:1.5rem; color:var(--text); cursor: pointer;">
                 <i class="fas fa-arrow-left"></i>
             </button>
-            <h2 id="sale-op-title" style="margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 10px;">
-                Recargas
-            </h2>
+            <h2 id="sale-op-title" style="margin: 0; font-size: 1.5rem;">Recargas</h2>
         </div>
 
-        <div style="flex: 1; overflow-y:auto; padding: 20px; padding-bottom: 120px;">
+        <div class="scroll-area" style="padding: 20px;">
             <div class="input-floating" id="phone-input-container">
                 <input type="tel" id="sale-phone" placeholder="Número del Cliente (8 dígitos)" maxlength="8" style="text-align:center; font-size:1.5rem; letter-spacing:2px; font-weight:bold;" autocomplete="off">
             </div>
             
             <div class="input-floating" style="margin-bottom: 25px;">
-                <input type="text" id="sale-name" placeholder="Nombre del Cliente (Opcional)" autocomplete="new-password" data-lpignore="true" spellcheck="false" style="text-align:center; font-size:1rem; color: var(--primary); font-weight: bold;">
+                <input type="text" id="sale-name" placeholder="Nombre del Cliente (Opcional)" autocomplete="new-password" data-lpignore="true" spellcheck="false" name="dummy-name-field" style="text-align:center; font-size:1rem; color: var(--primary); font-weight: bold;">
             </div>
 
             <h4 style="margin-bottom:15px; color:var(--text-light);">Selecciona Monto</h4>
@@ -190,84 +188,52 @@
     </section>
 
     <section id="sec-customers" class="app-shell hidden">
-        <div class="top-bar" style="flex-shrink: 0; z-index: 10;">
+        <div class="top-bar">
             <h2>Cartera de Clientes</h2>
             <p style="font-size:0.8rem; color:var(--text-light);">Seguimiento de Super Recargas y Vencimientos.</p>
             <input type="text" id="filter-customer" class="search-input" placeholder="Buscar por nombre o número..." onkeyup="renderCustomers()" style="width:100%; margin-top: 15px;" autocomplete="off">
         </div>
-
-        <div id="customers-list" style="flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 120px;">
-        </div>
-
-        <div class="bottom-nav">
-            <div class="nav-item" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
-            <div class="nav-item active" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
-            <div class="nav-item" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
-            <div class="nav-item" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
-            <div class="nav-item" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
-        </div>
+        <div id="customers-list" class="scroll-area" style="padding: 20px;"></div>
     </section>
 
     <section id="sec-analytics" class="app-shell hidden">
-        <div class="top-bar" style="flex-shrink: 0; z-index: 10;">
+        <div class="top-bar">
             <h2>Algoritmo de Ventas</h2>
             <p style="font-size:0.8rem; color:var(--text-light);">Análisis predictivo de tu negocio.</p>
         </div>
-
-        <div style="flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 120px;">
+        <div class="scroll-area" style="padding: 20px;">
             <div id="analytics-content"></div>
-
             <div class="academy-card" style="margin-top:20px;">
                 <h3><i class="fas fa-graduation-cap"></i> Academia de Ventas PRO</h3>
                 <ul>
-                    <li><strong>La regla de oro:</strong> Un cliente que recarga sin que se le corte la señal, es un cliente de por vida. Usa la pestaña "Clientes" para avisarles 1 día antes.</li>
-                    <li><strong>El Upsell:</strong> Si notas que compran recargas de 1 Día muy seguido, ofréceles la de 3 o 7 Días. Diles: <i>"Amigo, gastas L.45 diario, con la de 3 días ahorras dinero"</i>. Ganarás confianza.</li>
-                    <li><strong>Cercanía:</strong> Guarda sus nombres. Cuando regresen diles: "Hola Juan, ¿lo de siempre?". Eso automatiza el cerebro del cliente para no ir a otra pulpería.</li>
+                    <li><strong>La regla de oro:</strong> Un cliente que recarga sin que se le corte la señal, es un cliente de por vida.</li>
+                    <li><strong>El Upsell:</strong> Si notas que compran recargas de 1 Día muy seguido, ofréceles la de 3 o 7 Días. Ahorrarán dinero.</li>
                 </ul>
             </div>
-        </div>
-
-        <div class="bottom-nav">
-            <div class="nav-item" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
-            <div class="nav-item" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
-            <div class="nav-item active" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
-            <div class="nav-item" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
-            <div class="nav-item" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
         </div>
     </section>
 
     <section id="sec-history" class="app-shell hidden">
-        <div class="top-bar" style="flex-shrink: 0; z-index: 10;">
+        <div class="top-bar">
             <h2>Historial de Órdenes</h2>
             <div class="filter-bar" style="margin-top:15px; flex-wrap: wrap;">
-                <input type="date" id="filter-date" class="date-input" onchange="renderHistory()" title="Buscar por día">
-                <input type="month" id="filter-month" class="date-input" onchange="renderHistory()" title="Buscar por mes">
+                <input type="date" id="filter-date" class="date-input" onchange="renderHistory()">
+                <input type="month" id="filter-month" class="date-input" onchange="renderHistory()">
                 <button class="btn-mega" style="flex:1; padding:10px; font-size:0.8rem; background: #e53935;" onclick="exportHistoryPDF()">
                     <i class="fas fa-file-pdf"></i> PDF
                 </button>
             </div>
-            <input type="text" id="filter-search" class="search-input" placeholder="Buscar por Orden ID o Número..." onkeyup="renderHistory()" style="width:100%; margin-top: 10px;" autocomplete="off">
+            <input type="text" id="filter-search" class="search-input" placeholder="Buscar por ID o Número..." onkeyup="renderHistory()" style="width:100%; margin-top: 10px;" autocomplete="off">
         </div>
-
-        <div id="history-list" style="flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 120px;">
-        </div>
-
-        <div class="bottom-nav">
-            <div class="nav-item" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
-            <div class="nav-item" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
-            <div class="nav-item" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
-            <div class="nav-item active" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
-            <div class="nav-item" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
-        </div>
+        <div id="history-list" class="scroll-area" style="padding: 20px;"></div>
     </section>
 
     <section id="sec-settings" class="app-shell hidden">
-        <div class="top-bar" style="flex-shrink: 0; z-index: 10;">
+        <div class="top-bar">
             <h2>Ajustes y Sistema</h2>
             <p style="font-size:0.8rem; color:var(--text-light);">Configuración de cuenta, reportes y cierres.</p>
         </div>
-
-        <div style="flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 120px;">
+        <div class="scroll-area" style="padding: 20px;">
             
             <button class="btn-admin-pro" onclick="sendAdminReport()" style="margin-bottom: 20px; box-shadow: 0 5px 20px rgba(28, 181, 224, 0.4);">
                 <i class="fab fa-whatsapp fa-2x"></i>
@@ -280,13 +246,7 @@
 
             <div class="help-item" style="margin-top:20px;">
                 <h4><i class="fas fa-book"></i> ¿Cómo recargar saldo?</h4>
-                <p style="font-size:0.9rem; color:var(--text-light);">Para vender, necesitas saldo en tu banco. Ve al Lobby y presiona "+ DEPOSITO" para registrar un ingreso de capital.</p>
-            </div>
-            
-            <div class="help-item">
-                <h4><i class="fas fa-exclamation-triangle"></i> Reportar Fallo</h4>
-                <p style="font-size:0.9rem; color:var(--text-light);">Si el sistema falla, contacta a soporte técnico inmediatamente.</p>
-                <button class="btn-mega" style="margin-top:10px; font-size:0.9rem;" onclick="window.open('https://wa.me/50493655523')">Contactar Soporte</button>
+                <p style="font-size:0.9rem; color:var(--text-light);">Usa el botón "+ DEPOSITO" en el Lobby para registrar ingreso de capital.</p>
             </div>
 
             <button class="btn-logout-pro" onclick="logout()" style="margin-top:30px; width:100%;">
@@ -294,15 +254,15 @@
             </button>
 
         </div>
-
-        <div class="bottom-nav">
-            <div class="nav-item" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
-            <div class="nav-item" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
-            <div class="nav-item" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
-            <div class="nav-item" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
-            <div class="nav-item active" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
-        </div>
     </section>
+
+    <nav id="main-nav" class="bottom-nav hidden">
+        <div class="nav-item active" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
+        <div class="nav-item" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
+        <div class="nav-item" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
+        <div class="nav-item" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+        <div class="nav-item" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
+    </nav>
 
     <div id="modal-confirm" class="modal-overlay hidden">
         <div class="modal-sheet">
@@ -316,7 +276,6 @@
     <div id="modal-deposit" class="modal-overlay hidden">
         <div class="modal-sheet">
             <h3 style="text-align:center;">Ingresar Depósito</h3>
-            <p style="text-align:center; font-size:0.9rem; color:var(--text-light); margin-bottom:10px;">Agrega saldo a tu cuenta de banco para poder vender.</p>
             <div class="modal-3d-box">
                 <input type="number" id="deposit-amount" class="custom-amt-input" placeholder="0.00">
             </div>
@@ -345,45 +304,34 @@
                 </svg>
             </div>
             <h2 style="color:var(--success)">¡Transacción Exitosa!</h2>
-            <p style="margin:10px 0 20px;">La recarga ha sido enviada y guardada en la nube.</p>
-            
-            <button id="btn-wa-client" class="btn-mega" style="background: #25D366; margin-bottom:10px;">
-                <i class="fab fa-whatsapp"></i> ENVIAR VOUCHER AL CLIENTE
+            <button id="btn-wa-client" class="btn-mega" style="background: #25D366; margin:15px 0 10px;">
+                <i class="fab fa-whatsapp"></i> ENVIAR VOUCHER
             </button>
             <button class="btn-mega" style="background: var(--text-light);" onclick="navTo('lobby'); closeModal()">
-                NUEVA VENTA
+                CERRAR
             </button>
         </div>
     </div>
 
     <div id="deposit-animation-container" class="hidden">
-        <div class="coin-3d">
-            <i class="fas fa-dollar-sign"></i>
-        </div>
+        <div class="coin-3d"><i class="fas fa-dollar-sign"></i></div>
         <div class="deposit-msg">¡Depósito Exitoso!</div>
     </div>
 
     <div id="celebration-screen" class="celebration-overlay hidden">
         <i class="fas fa-rocket fa-5x" style="margin-bottom:30px; animation: bounce 1s infinite;"></i>
         <div class="celebration-text">¡Gracias por Recargar!</div>
-        <div class="celebration-sub">Ahora sigamos vendiendo y haciendo plata.</div>
         <button class="btn-deposit" style="margin-top:30px; background:white; color:#00C851; font-weight:bold; padding:15px 30px;" onclick="closeCelebration()">A VENDER</button>
     </div>
 
     <div id="mascot-container" class="mascot-alert hidden">
-        <div class="mascot-bubble" id="mascot-text">
-            ¡Nos quedamos sin fondos!
-            <div class="close-mascot" onclick="dismissMascot()">X</div>
-        </div>
-        <div class="mascot-avatar" id="mascot-face">
-            <i class="fas fa-robot"></i>
-        </div>
+        <div class="mascot-bubble" id="mascot-text"><div class="close-mascot" onclick="dismissMascot()">X</div></div>
+        <div class="mascot-avatar" id="mascot-face"><i class="fas fa-robot"></i></div>
     </div>
 
-    <audio id="urgent-audio" src="/alerta.mp3" preload="auto"></audio>
+    <audio id="urgent-audio" src="./alerta.mp3" preload="auto"></audio>
 
-    <script src="/frontend/js/firebase-config.js" type="module"></script>
-    <script src="/frontend/js/app.js"></script>
+    <script src="./js/app.js"></script>
 
 </body>
 </html>

@@ -1,4 +1,6 @@
-/* --- CONFIG PRECIOS Y MATERIA PRIMA --- */
+/* =========================================================
+   CONFIGURACIÓN Y PRECIOS
+========================================================= */
 const PRECIOS = {
     'Tigo': [
         {n:'Super 1 Día', b:36, v:45}, {n:'Super 3 Días', b:67, v:75},
@@ -13,22 +15,29 @@ const PRECIOS = {
     ]
 };
 
+// URL DE TU BASE DE DATOS (Ajusta esto si lo subes a Render)
+const API_URL = "http://127.0.0.1:10000"; 
+
 let state = {
+    uid: localStorage.getItem('rp_uid') || null,
     user: localStorage.getItem('rp_user') || 'Usuario',
     theme: localStorage.getItem('rp_theme') || 'light',
+    wallet: JSON.parse(localStorage.getItem('rp_wallet')) || { cash: 0, bank: 0 },
     tempSale: null,
     currentOp: '',
-    wallet: { cash: 0, bank: 0 },
     mascotDismissed: false,
     audioUnlocked: false
 };
 
 let currentFilteredHistory = []; 
 
-/* --- INICIO --- */
+/* =========================================================
+   INICIO Y PERSISTENCIA REAL DE SESIÓN
+========================================================= */
 window.onload = () => {
     initParticles();
     applyTheme();
+    checkSessionPersistence();
 
     // AUTOCOMPLETAR NOMBRE DEL CLIENTE AL ESCRIBIR 8 DÍGITOS
     const phoneInput = document.getElementById('sale-phone');
@@ -38,16 +47,17 @@ window.onload = () => {
                 let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
                 let pastSale = rawHistory.find(h => h.phone === e.target.value && h.customerName && h.customerName.toLowerCase() !== 'cliente');
                 if(pastSale) {
-                    document.getElementById('sale-name').value = pastSale.customerName;
-                    document.getElementById('sale-name').style.backgroundColor = 'rgba(0, 200, 81, 0.2)';
-                    setTimeout(() => { document.getElementById('sale-name').style.backgroundColor = 'transparent'; }, 1000);
+                    const nameInput = document.getElementById('sale-name');
+                    nameInput.value = pastSale.customerName;
+                    nameInput.style.backgroundColor = 'rgba(0, 200, 81, 0.2)';
+                    setTimeout(() => { nameInput.style.backgroundColor = 'transparent'; }, 1000);
                 }
             }
         });
     }
 };
 
-/* DESBLOQUEO DE AUDIO FORZADO (Políticas de navegadores) */
+/* --- DESBLOQUEO DE AUDIO FORZADO --- */
 document.body.addEventListener('click', () => {
     if(!state.audioUnlocked) {
         const audio = document.getElementById('urgent-audio');
@@ -61,7 +71,160 @@ document.body.addEventListener('click', () => {
     }
 }, { once: true });
 
-/* --- THEME --- */
+/* --- COMPROBAR SI YA ESTABA LOGUEADO (PERSISTENCIA) --- */
+function checkSessionPersistence() {
+    const isLoggedIn = localStorage.getItem('rp_logged_in') === 'true';
+    if(isLoggedIn && state.uid) {
+        // Ocultar Login y mostrar el Lobby sin pedir datos
+        document.getElementById('sec-login').classList.add('hidden');
+        document.getElementById('sec-lobby').classList.remove('hidden');
+        document.getElementById('user-display').innerText = state.user;
+        
+        updateWalletUI();
+        updateDashboard();
+        syncDataFromDatabase(); // Descarga historial de la Nube a este dispositivo
+    }
+}
+
+/* =========================================================
+   LOGIN CLÁSICO (SIN GOOGLE)
+========================================================= */
+function toggleFlip() { document.getElementById('login-flipper').classList.toggle('flipped'); }
+
+function handleRegister() {
+    const u = document.getElementById('reg-user').value.trim();
+    const p = document.getElementById('reg-pass').value.trim();
+    const n = document.getElementById('reg-name').value.trim();
+    if(u && p && n) {
+        // Guardamos las credenciales localmente
+        localStorage.setItem('user_' + u, p);
+        localStorage.setItem('name_' + u, n); 
+        document.getElementById('reg-success-overlay').classList.remove('hidden');
+    } else { alert("Por favor, completa todos los campos."); }
+}
+
+function finishRegAnimation() {
+     document.getElementById('reg-success-overlay').classList.add('hidden');
+     document.getElementById('log-user').value = document.getElementById('reg-user').value;
+     document.getElementById('log-pass').value = '';
+     toggleFlip(); 
+}
+
+function handleLogin() {
+    const u = document.getElementById('log-user').value.trim();
+    const p = document.getElementById('log-pass').value.trim();
+    const storedPass = localStorage.getItem('user_' + u);
+    const storedName = localStorage.getItem('name_' + u) || u;
+
+    const grpUser = document.getElementById('grp-log-user');
+    const grpPass = document.getElementById('grp-log-pass');
+    grpUser.classList.remove('shake-error'); grpPass.classList.remove('shake-error');
+
+    if(u && p && storedPass === p) {
+        // CREDENCIALES CORRECTAS: CREAR SESIÓN PERSISTENTE
+        state.uid = u;
+        state.user = storedName; 
+        localStorage.setItem('rp_uid', state.uid);
+        localStorage.setItem('rp_user', state.user);
+        localStorage.setItem('rp_logged_in', 'true'); // Marca de persistencia
+        
+        document.getElementById('sec-login').classList.add('hidden');
+        document.getElementById('sec-lobby').classList.remove('hidden');
+        document.getElementById('user-display').innerText = state.user;
+        
+        updateWalletUI();
+        syncDataFromDatabase(); // Trae datos de la base de datos si entra desde otro celular
+    } else {
+        void grpUser.offsetWidth; void grpPass.offsetWidth;
+        grpUser.classList.add('shake-error'); grpPass.classList.add('shake-error');
+        if(navigator.vibrate) navigator.vibrate(200);
+    }
+}
+
+function logout() {
+    if(confirm("¿Seguro que quieres cerrar sesión? Perderás el acceso rápido en este dispositivo.")) {
+        localStorage.removeItem('rp_logged_in');
+        location.reload(); // Recarga la página y muestra el login
+    }
+}
+
+function nextIntroSlide() {
+    document.getElementById('sec-intro').classList.add('hidden');
+    document.getElementById('sec-welcome').classList.remove('hidden');
+}
+
+/* =========================================================
+   NAVEGACIÓN CERO LAG
+========================================================= */
+function navTo(screen) {
+    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
+    
+    const targetSection = document.getElementById(`sec-${screen}`);
+    if(targetSection) targetSection.classList.remove('hidden');
+
+    if(screen === 'lobby') { updateDashboard(); updateWalletUI(); checkBalanceHealth(); }
+    else if (screen === 'history') { renderHistory(); }
+    else if (screen === 'customers') { renderCustomers(); }
+    else if (screen === 'analytics') { renderAnalytics(); }
+    
+    // Pinta el botón exacto instantáneamente
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll(`.nav-item[data-target="${screen}"]`).forEach(el => el.classList.add('active'));
+}
+
+/* =========================================================
+   SINCRONIZACIÓN CON BASE DE DATOS POSTGRESQL (LA NUBE)
+========================================================= */
+async function syncDataFromDatabase() {
+    if(!state.uid) return;
+    try {
+        const response = await fetch(`${API_URL}/sales/${state.uid}`);
+        if(response.ok) {
+            const serverSales = await response.json();
+            if(serverSales && serverSales.length > 0) {
+                // Sobrescribir historial local con el de la nube
+                localStorage.setItem('rp_history', JSON.stringify(serverSales));
+                updateDashboard();
+            }
+        }
+    } catch(err) {
+        console.log("Modo Offline activo: Usando caché local.");
+    }
+}
+
+async function forceBackupToCloud() {
+    if(!state.uid) return;
+    try {
+        // Guarda la Billetera
+        await fetch(`${API_URL}/users/sync`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                uid: state.uid,
+                name: state.user,
+                email: `${state.uid}@rapirecargas.com`,
+                wallet: state.wallet
+            })
+        });
+    } catch(e) { console.log("Backup billetera en espera..."); }
+}
+
+function showSyncToast() {
+    const toast = document.getElementById('sync-toast');
+    if(toast) {
+        toast.classList.remove('hidden');
+        toast.style.opacity = '1';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.classList.add('hidden'), 500);
+        }, 3000);
+    }
+}
+
+/* =========================================================
+   WALLET, DEPÓSITOS Y MASCOTA DE ALERTA
+========================================================= */
 function toggleTheme() {
     state.theme = state.theme === 'light' ? 'dark' : 'light';
     localStorage.setItem('rp_theme', state.theme);
@@ -73,87 +236,12 @@ function applyTheme() {
     if(icon) icon.className = state.theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
 }
 
-function toggleFlip() { document.getElementById('login-flipper').classList.toggle('flipped'); }
-
-// Fallback de Registro Clásico
-function handleRegister() {
-    const u = document.getElementById('reg-user').value;
-    const p = document.getElementById('reg-pass').value;
-    const n = document.getElementById('reg-name').value;
-    if(u && p && n) {
-        localStorage.setItem('user_' + u, p);
-        localStorage.setItem('name_' + u, n); 
-        document.getElementById('reg-success-overlay').classList.remove('hidden');
-    } else { alert("Completa todos los campos"); }
+function updateWalletUI() {
+    document.getElementById('wallet-cash').innerText = `L.${state.wallet.cash}`;
+    document.getElementById('wallet-bank').innerText = `L.${state.wallet.bank}`;
+    localStorage.setItem('rp_wallet', JSON.stringify(state.wallet));
 }
 
-function finishRegAnimation() {
-     document.getElementById('reg-success-overlay').classList.add('hidden');
-     document.getElementById('log-user').value = document.getElementById('reg-user').value;
-     toggleFlip(); 
-}
-
-// Fallback de Login Clásico
-function handleLogin() {
-    const u = document.getElementById('log-user').value;
-    const p = document.getElementById('log-pass').value;
-    const storedPass = localStorage.getItem('user_' + u);
-    const storedName = localStorage.getItem('name_' + u) || u;
-
-    const grpUser = document.getElementById('grp-log-user');
-    const grpPass = document.getElementById('grp-log-pass');
-    grpUser.classList.remove('shake-error'); grpPass.classList.remove('shake-error');
-
-    if(u && p && storedPass === p) {
-        state.user = storedName; 
-        document.getElementById('sec-login').classList.add('hidden');
-        document.getElementById('sec-lobby').classList.remove('hidden');
-        document.getElementById('user-display').innerText = storedName;
-        const localWallet = JSON.parse(localStorage.getItem('rp_wallet'));
-        if(localWallet) state.wallet = localWallet;
-        updateWalletUI();
-    } else {
-        void grpUser.offsetWidth; void grpPass.offsetWidth;
-        grpUser.classList.add('shake-error'); grpPass.classList.add('shake-error');
-        if(navigator.vibrate) navigator.vibrate(200);
-    }
-}
-
-function nextIntroSlide() {
-    document.getElementById('sec-intro').classList.add('hidden');
-    document.getElementById('sec-welcome').classList.remove('hidden');
-}
-
-/* --- NAVEGACION CERO LAG --- */
-function navTo(screen) {
-    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
-    
-    if(screen === 'lobby') {
-        document.getElementById('sec-lobby').classList.remove('hidden');
-        updateDashboard(); updateWalletUI(); checkBalanceHealth();
-    } else if (screen === 'history') {
-        document.getElementById('sec-history').classList.remove('hidden');
-        renderHistory();
-    } else if (screen === 'sales') {
-        document.getElementById('sec-sales').classList.remove('hidden');
-    } else if (screen === 'help') {
-        document.getElementById('sec-help').classList.remove('hidden');
-    } else if (screen === 'customers') {
-        document.getElementById('sec-customers').classList.remove('hidden');
-        renderCustomers();
-    } else if (screen === 'analytics') {
-        document.getElementById('sec-analytics').classList.remove('hidden');
-        renderAnalytics();
-    } else if (screen === 'settings') {
-        document.getElementById('sec-settings').classList.remove('hidden');
-    }
-    
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll(`.nav-item[data-target="${screen}"]`).forEach(el => el.classList.add('active'));
-}
-
-/* --- LOGICA MASCOTA Y SONIDO DE ALERTA --- */
 function checkBalanceHealth() {
     const bal = state.wallet.bank;
     const mascot = document.getElementById('mascot-container');
@@ -169,11 +257,8 @@ function checkBalanceHealth() {
         mascot.classList.add('mascot-critical');
         htmlMsg = `¡URGENTE ${state.user}! 🚨<br>Quedan menos de L.100 en banco. Recarga YA.`;
         face.innerHTML = '<i class="fas fa-dizzy"></i>';
-        
         const audioAlerta = document.getElementById('urgent-audio');
-        if(audioAlerta && state.audioUnlocked) {
-            audioAlerta.play().catch(e => console.log("Audio en espera"));
-        }
+        if(audioAlerta && state.audioUnlocked) audioAlerta.play().catch(e=>e);
     } else if (bal <= 500) {
         mascot.classList.add('mascot-warning');
         htmlMsg = `Oye ${state.user}, nos estamos quedando sin fondos (L.${bal}).`;
@@ -182,15 +267,9 @@ function checkBalanceHealth() {
         mascot.classList.add('hidden');
         return;
     }
-
     text.innerHTML = htmlMsg + '<div class="close-mascot" onclick="dismissMascot()">X</div>';
 }
-
-function dismissMascot() {
-    state.mascotDismissed = true;
-    document.getElementById('mascot-container').classList.add('hidden');
-}
-
+function dismissMascot() { state.mascotDismissed = true; document.getElementById('mascot-container').classList.add('hidden'); }
 setInterval(() => {
     if(state.mascotDismissed) {
         state.mascotDismissed = false; 
@@ -198,26 +277,6 @@ setInterval(() => {
         checkBalanceHealth(); 
     }
 }, 10000);
-
-/* --- TOAST: MENSAJE DE GUARDADO EN LA NUBE --- */
-function showSyncToast() {
-    const toast = document.getElementById('sync-toast');
-    if(toast) {
-        toast.classList.remove('hidden');
-        toast.style.opacity = '1';
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => toast.classList.add('hidden'), 500);
-        }, 3000);
-    }
-}
-
-/* --- WALLET & DEPOSIT --- */
-window.updateWalletUI = function() {
-    document.getElementById('wallet-cash').innerText = `L.${state.wallet.cash}`;
-    document.getElementById('wallet-bank').innerText = `L.${state.wallet.bank}`;
-    localStorage.setItem('rp_wallet', JSON.stringify(state.wallet));
-}
 
 function openDepositModal() {
     document.getElementById('deposit-amount').value = '';
@@ -233,9 +292,8 @@ function confirmDeposit() {
     if(animContainer) animContainer.classList.remove('hidden');
     
     state.wallet.bank += amt;
-    window.updateWalletUI();
-
-    if(window.saveDepositToFirebase) window.saveDepositToFirebase();
+    updateWalletUI();
+    forceBackupToCloud(); // Sube la nueva billetera a Postgres
     
     setTimeout(() => {
         if(animContainer) animContainer.classList.add('hidden');
@@ -244,23 +302,17 @@ function confirmDeposit() {
         checkBalanceHealth(); 
     }, 2500);
 }
+function closeCelebration() { document.getElementById('celebration-screen').classList.add('hidden'); }
 
-function closeCelebration() {
-    const celebScreen = document.getElementById('celebration-screen');
-    if(celebScreen) celebScreen.classList.add('hidden');
-}
-
-/* --- VENTAS --- */
+/* =========================================================
+   VENTAS Y FACTURACIÓN
+========================================================= */
 function openSales(op) {
     state.currentOp = op;
     document.getElementById('sale-op-title').innerText = "Recargas " + op;
     document.getElementById('sale-phone').value = '';
-    
     const nameInput = document.getElementById('sale-name');
-    if(nameInput) {
-        nameInput.value = '';
-        nameInput.style.backgroundColor = 'transparent';
-    }
+    if(nameInput) { nameInput.value = ''; nameInput.style.backgroundColor = 'transparent'; }
     
     const grid = document.getElementById('packages-grid');
     grid.innerHTML = '';
@@ -268,38 +320,28 @@ function openSales(op) {
     PRECIOS[op].forEach(p => {
         const btn = document.createElement('button');
         btn.className = 'btn-mega';
-        btn.style.fontSize = '0.9rem';
-        btn.style.background = 'var(--card-bg)';
-        btn.style.color = 'var(--text)';
-        btn.style.border = '1px solid var(--primary)';
+        btn.style.fontSize = '0.9rem'; btn.style.background = 'var(--card-bg)';
+        btn.style.color = 'var(--text)'; btn.style.border = '1px solid var(--primary)';
         btn.innerHTML = `<div>${p.n}</div><div style="color:var(--primary); font-size:1.2rem;">L.${p.v}</div>`;
         btn.onclick = () => prepareSale(op, p);
         grid.appendChild(btn);
     });
 
     const btnCustom = document.createElement('button');
-    btnCustom.className = 'btn-mega btn-custom-opt'; 
-    btnCustom.style.gridColumn = "span 3";
-    btnCustom.style.background = "var(--text)";
-    btnCustom.style.color = "var(--bg)"; 
-    btnCustom.innerHTML = "OTRO MONTO";
-    btnCustom.onclick = () => showCustomModal();
+    btnCustom.className = 'btn-mega btn-custom-opt'; btnCustom.style.gridColumn = "span 3";
+    btnCustom.style.background = "var(--text)"; btnCustom.style.color = "var(--bg)"; 
+    btnCustom.innerHTML = "OTRO MONTO"; btnCustom.onclick = () => showCustomModal();
     grid.appendChild(btnCustom);
 
     navTo('sales');
 }
 
-function showCustomModal() {
-    document.getElementById('custom-amount-input').value = '';
-    document.getElementById('modal-custom').classList.remove('hidden');
-}
-
+function showCustomModal() { document.getElementById('custom-amount-input').value = ''; document.getElementById('modal-custom').classList.remove('hidden'); }
 function processCustomAmount() {
     const amt = document.getElementById('custom-amount-input').value;
     if(!amt || amt <= 0) return alert("Ingresa un monto válido");
     document.getElementById('modal-custom').classList.add('hidden');
-    const pkg = { n: 'Recarga Libre', b: amt, v: amt }; 
-    prepareSale(state.currentOp, pkg);
+    prepareSale(state.currentOp, { n: 'Recarga Libre', b: amt, v: amt });
 }
 
 function prepareSale(op, pkg) {
@@ -313,10 +355,8 @@ function prepareSale(op, pkg) {
     const name = nameInput && nameInput.value.trim() !== '' ? nameInput.value : 'Cliente';
     
     if(phone.length !== 8) {
-        phoneContainer.classList.remove('shake-error');
-        void phoneContainer.offsetWidth; 
-        phoneContainer.classList.add('shake-error');
-        return; 
+        phoneContainer.classList.remove('shake-error'); void phoneContainer.offsetWidth; 
+        phoneContainer.classList.add('shake-error'); return; 
     }
     
     const orderID = Math.floor(100000 + Math.random() * 900000); 
@@ -325,7 +365,7 @@ function prepareSale(op, pkg) {
     let expireTimestamp = null;
     let esSuper = false;
     
-    // Extraer Días para calcular Vencimiento Exacto
+    // Cálculo Exacto de Días
     if(pkg.n.toLowerCase().includes('super') || pkg.n.toLowerCase().includes('día')) {
         esSuper = true;
         const numMatch = pkg.n.match(/(\d+)\s*Día/i);
@@ -357,9 +397,7 @@ function prepareSale(op, pkg) {
     document.getElementById('modal-confirm').classList.remove('hidden');
 }
 
-function closeModal() {
-    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
-}
+function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); }
 
 function finalizeSale() {
     let history = JSON.parse(localStorage.getItem('rp_history')) || [];
@@ -369,25 +407,17 @@ function finalizeSale() {
     state.wallet.bank -= state.tempSale.costo; 
     state.wallet.cash += parseInt(state.tempSale.monto); 
     
-    window.updateWalletUI();
+    updateWalletUI();
     checkBalanceHealth();
+    forceBackupToCloud(); // Respalda billetera
 
-    // 1. Guardado Forzado Firebase
-    if(window.saveSaleToFirebase) {
-        window.saveSaleToFirebase(state.tempSale).then(() => {
-            showSyncToast();
-        }).catch(e => showSyncToast()); 
-    } else {
-        showSyncToast();
-    }
-
-    // 2. Guardado Forzado PostgreSQL (Se manda en segundo plano optimizado)
+    // SUBE LA VENTA A POSTGRES EN SEGUNDO PLANO
     try {
-        fetch('http://127.0.0.1:10000/sales/new', {
+        fetch(`${API_URL}/sales/new`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                uid_user: state.user || 'Desconocido',
+                uid_user: state.uid || 'anonimo',
                 id: state.tempSale.id.toString(),
                 op: state.tempSale.op,
                 prod: state.tempSale.prod,
@@ -402,25 +432,25 @@ function finalizeSale() {
                 esSuper: state.tempSale.esSuper,
                 expireTimestamp: state.tempSale.expireTimestamp || null
             })
-        }).catch(e => console.log("PostgreSQL Sincronizando..."));
-    } catch(err) {}
+        }).then(() => showSyncToast()).catch(e => showSyncToast());
+    } catch(err) { showSyncToast(); }
 
     closeModal();
     
     const msg = `🧾 *COMPROBANTE DE PAGO*\n\nHola ${state.tempSale.customerName}, aquí está tu recarga:\n🆔 Orden: ${state.tempSale.id}\n📅 Fecha: ${state.tempSale.date}\n📱 Numero: ${state.tempSale.phone}\n📦 Pack: ${state.tempSale.prod}\n💰 Valor: L.${state.tempSale.monto}\n\nGracias por tu preferencia!`;
     const waLink = `https://wa.me/504${state.tempSale.phone}?text=${encodeURIComponent(msg)}`;
-    
     const btn = document.getElementById('btn-wa-client');
     if(btn) { btn.onclick = () => window.open(waLink, '_blank'); }
     
     document.getElementById('modal-success').classList.remove('hidden');
 }
 
-/* --- DASHBOARD Y ADMIN --- */
-window.updateDashboard = function() {
+/* =========================================================
+   DASHBOARD Y REPORTES ADMIN
+========================================================= */
+function updateDashboard() {
     let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
     let history = rawHistory.filter(h => h && h.monto !== undefined);
-    
     const today = new Date().toLocaleDateString();
     const currentMonth = new Date().getMonth();
     let gToday = 0, gMonth = 0, vTotal = 0;
@@ -446,93 +476,17 @@ function sendAdminReport() {
     let history = rawHistory.filter(h => h && h.date);
     const today = new Date().toLocaleDateString();
     let salesToday = history.filter(h => h.date === today);
-    
     if(salesToday.length === 0) return alert("No hay ventas hoy para reportar.");
     
     let totalVenta = 0, totalGanancia = 0;
-    salesToday.forEach(h => {
-        totalVenta += parseInt(h.monto || 0);
-        totalGanancia += parseInt(h.ganancia || 0);
-    });
+    salesToday.forEach(h => { totalVenta += parseInt(h.monto || 0); totalGanancia += parseInt(h.ganancia || 0); });
     
     const msg = `📊 *REPORTE DE CIERRE - ${today}*\n\n👤 Usuario: ${state.user}\n🛒 Transacciones: ${salesToday.length}\n💰 Venta Total: L.${totalVenta}\n📈 Ganancia Neta: L.${totalGanancia}\n💵 Caja Actual: L.${state.wallet.cash}\n🏦 Banco Restante: L.${state.wallet.bank}`;
     window.open(`https://wa.me/50493655523?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-/* --- HISTORIAL Y FILTROS BLINDADOS --- */
-function renderHistory() {
-    let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
-    const list = document.getElementById('history-list');
-    const dateFilter = document.getElementById('filter-date') ? document.getElementById('filter-date').value : ''; 
-    const monthFilter = document.getElementById('filter-month') ? document.getElementById('filter-month').value : ''; 
-    const searchFilter = document.getElementById('filter-search') ? document.getElementById('filter-search').value.toLowerCase() : '';
-    
-    list.innerHTML = '';
-    
-    let validHistory = rawHistory.filter(h => h && h.id && h.phone);
-    validHistory.sort((a, b) => (b.timestamp || parseInt(b.id) || 0) - (a.timestamp || parseInt(a.id) || 0));
-    
-    const filtered = validHistory.filter(h => {
-        const safeId = h.id ? h.id.toString() : '';
-        const safePhone = h.phone ? h.phone.toString() : '';
-        const safeDate = h.date || '';
-        const safeName = h.customerName ? h.customerName.toLowerCase() : '';
-
-        const matchesSearch = safeId.includes(searchFilter) || safePhone.includes(searchFilter) || safeName.includes(searchFilter);
-        
-        let matchesDate = true;
-        if(dateFilter) {
-            const [y, m, d] = dateFilter.split('-');
-            const localDateFilter = `${parseInt(d)}/${parseInt(m)}/${y}`;
-            matchesDate = safeDate.includes(localDateFilter) || safeDate.includes(`${d}/${m}/${y}`);
-        }
-        let matchesMonth = true;
-        if(monthFilter) {
-            const [y, m] = monthFilter.split('-');
-            matchesMonth = safeDate.includes(`/${parseInt(m)}/${y}`) || safeDate.includes(`/${m}/${y}`);
-        }
-        return matchesSearch && matchesDate && matchesMonth;
-    });
-
-    currentFilteredHistory = filtered; 
-
-    if(filtered.length === 0) { list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-light);">No se encontraron registros.</div>'; return; }
-
-    filtered.forEach(h => {
-        const item = document.createElement('div');
-        item.className = `history-card ${h.op === 'Claro' ? 'h-claro' : 'h-tigo'}`;
-        item.innerHTML = `
-            <div>
-                <div class="order-id">ORDEN #${h.id} - ${h.customerName || 'Cliente'}</div>
-                <div style="font-weight:bold;">${h.phone}</div>
-                <div style="font-size:0.8rem; color:var(--text-light);">${h.prod}</div>
-                <div style="font-size:0.7rem; color:var(--text-light);">${h.date} - ${h.time}</div>
-            </div>
-            <div class="h-price">L.${h.monto}</div>
-        `;
-        list.appendChild(item);
-    });
-}
-
-function exportHistoryPDF() {
-    if(!currentFilteredHistory || currentFilteredHistory.length === 0) return alert("No hay órdenes en pantalla.");
-    const { jsPDF } = window.jspdf; const doc = new jsPDF();
-    doc.text("Reporte Rapi Recargas ULTRA", 14, 15);
-    doc.setFontSize(10); doc.text(`Fecha: ${new Date().toLocaleString()}`, 14, 22);
-    
-    let tV = 0, tG = 0;
-    const tableData = currentFilteredHistory.map(h => {
-        tV += parseInt(h.monto || 0); tG += parseInt(h.ganancia || 0);
-        return [h.date, `#${h.id}`, h.op, h.phone, `L.${h.monto}`, `L.${h.ganancia}`];
-    });
-    
-    doc.autoTable({ startY: 30, head: [['Fecha', 'ID', 'Compañía', 'Número', 'Venta', 'Ganancia']], body: tableData, theme: 'grid', headStyles: { fillColor: [255, 103, 0] } });
-    doc.setFontSize(12); doc.text(`Ventas: L.${tV}`, 14, doc.lastAutoTable.finalY + 15); doc.text(`Ganancia: L.${tG}`, 14, doc.lastAutoTable.finalY + 25);
-    doc.save(`Reporte_RapiRecargas.pdf`);
-}
-
 /* =========================================================
-   NUEVO MÓDULO CRM: VENCIMIENTOS Y UPSELL (24H LOGIC)
+   MÓDULO CRM: VENCIMIENTOS Y UPSELL (24H LOGIC)
 ========================================================= */
 function renderCustomers() {
     let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
@@ -545,7 +499,6 @@ function renderCustomers() {
         if(!h || !h.phone) return;
         if(!clientsMap[h.phone]) { clientsMap[h.phone] = { phone: h.phone, name: h.customerName || 'Cliente', purchases: [], latestSuper: null }; }
         clientsMap[h.phone].purchases.push(h);
-        
         if(h.esSuper && h.expireTimestamp) {
             if(!clientsMap[h.phone].latestSuper || h.timestamp > clientsMap[h.phone].latestSuper.timestamp) {
                 clientsMap[h.phone].latestSuper = h;
@@ -565,18 +518,17 @@ function renderCustomers() {
         if(client.latestSuper) {
             const timeDiff = client.latestSuper.expireTimestamp - now;
             const hoursLeft = timeDiff / (1000 * 60 * 60);
-            
             const waMsg = `Hola ${client.name}, te saludo de Rapi Recargas. Tu paquete ${client.latestSuper.prod} está por terminar. ¿Deseas que te haga una nueva recarga para que no pierdas conexión? Avisame, aquí te atiendo rápido. ⚡`;
             
             if(hoursLeft <= 0) {
-                statusHtml = `<div class="status-badge status-expired"><i class="fas fa-times-circle"></i> Recarga Vencida</div>`;
-                statusHtml += `<button class="btn-sm btn-wa-remind" onclick="window.open('https://wa.me/504${client.phone}?text=${encodeURIComponent(waMsg)}', '_blank')"><i class="fab fa-whatsapp"></i> Avisar para Renovar</button>`;
+                statusHtml = `<div class="status-badge status-expired"><i class="fas fa-times-circle"></i> Recarga Vencida</div>
+                              <button class="btn-sm btn-wa-remind" onclick="window.open('https://wa.me/504${client.phone}?text=${encodeURIComponent(waMsg)}', '_blank')"><i class="fab fa-whatsapp"></i> Avisar para Renovar</button>`;
             } else if (hoursLeft <= 24) {
-                statusHtml = `<div class="status-badge status-warning"><i class="fas fa-exclamation-triangle"></i> Vence en ${Math.ceil(hoursLeft)}h</div>`;
-                statusHtml += `<button class="btn-sm btn-wa-remind" onclick="window.open('https://wa.me/504${client.phone}?text=${encodeURIComponent(waMsg)}', '_blank')"><i class="fab fa-whatsapp"></i> Avisar para Renovar</button>`;
+                statusHtml = `<div class="status-badge status-warning"><i class="fas fa-exclamation-triangle"></i> Vence en ${Math.ceil(hoursLeft)}h</div>
+                              <button class="btn-sm btn-wa-remind" onclick="window.open('https://wa.me/504${client.phone}?text=${encodeURIComponent(waMsg)}', '_blank')"><i class="fab fa-whatsapp"></i> Avisar para Renovar</button>`;
             } else {
-                statusHtml = `<div class="status-badge status-active"><i class="fas fa-check-circle"></i> Activa (${Math.ceil(hoursLeft/24)} días rest)</div>`;
-                statusHtml += `<div style="font-size:0.75rem; color:#888; margin-top:5px; padding-left:5px; border-left: 2px solid var(--primary);">Aquí se mostrará el botón para avisar al cliente cuando falten 24 horas o menos para vencer.</div>`;
+                statusHtml = `<div class="status-badge status-active"><i class="fas fa-check-circle"></i> Activa (${Math.ceil(hoursLeft/24)} días rest)</div>
+                              <div style="font-size:0.75rem; color:#888; margin-top:5px; padding-left:5px; border-left: 2px solid var(--primary);">El botón de WhatsApp aparecerá cuando falten 24h.</div>`;
             }
         } else {
             statusHtml = `<span style="font-size:0.8rem; color:#888;">Cliente de recargas normales (sin vencimiento).</span>`;
@@ -584,27 +536,18 @@ function renderCustomers() {
 
         const oneDayPurchases = client.purchases.filter(p => p.prod.includes('1 Día'));
         if(oneDayPurchases.length >= 2) {
-            upsellHtml = `
-                <div class="upsell-box">
-                    <strong>💡 Oportunidad de Venta:</strong><br>
-                    Este cliente lleva ${oneDayPurchases.length} recargas de 1 Día seguidas.<br>
-                    <i>Ofrécele la Super 3 Días (L.75). Ahorrará dinero y tú aseguras la venta.</i>
-                </div>
-            `;
+            upsellHtml = `<div class="upsell-box"><strong>💡 Oportunidad:</strong> Este cliente lleva ${oneDayPurchases.length} recargas de 1 Día seguidas.<br><i>Ofrécele la Super 3 Días (L.75). Ahorrará dinero.</i></div>`;
         }
 
-        card.innerHTML = `
-            <div style="font-size:1.1rem; font-weight:bold; color:var(--primary);"><i class="fas fa-user-circle"></i> ${client.name}</div>
-            <div style="font-weight:bold; margin-bottom:5px;">📱 ${client.phone}</div>
-            <div>${statusHtml}</div>
-            ${upsellHtml}
-        `;
+        card.innerHTML = `<div style="font-size:1.1rem; font-weight:bold; color:var(--primary);"><i class="fas fa-user-circle"></i> ${client.name}</div>
+                          <div style="font-weight:bold; margin-bottom:5px;">📱 ${client.phone}</div>
+                          <div>${statusHtml}</div>${upsellHtml}`;
         list.appendChild(card);
     });
 }
 
 /* =========================================================
-   NUEVO MÓDULO ALGORITMO DE INTELIGENCIA Y ESTADÍSTICAS
+   MÓDULO ALGORITMO E HISTORIAL
 ========================================================= */
 function renderAnalytics() {
     let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
@@ -614,7 +557,6 @@ function renderAnalytics() {
     if(history.length === 0) { content.innerHTML = "<p>Necesitas realizar ventas para procesar datos.</p>"; return; }
 
     let tigoCount = 0, claroCount = 0; let productsMap = {};
-
     history.forEach(h => {
         if(h.op === 'Tigo') tigoCount++; else claroCount++;
         if(!productsMap[h.prod]) productsMap[h.prod] = { name: h.prod, count: 0, revenue: 0 };
@@ -622,18 +564,15 @@ function renderAnalytics() {
     });
 
     let bestOp = tigoCount > claroCount ? 'Tigo' : (claroCount > tigoCount ? 'Claro' : 'Empate');
-    const topProducts = Object.values(productsMap).sort((a, b) => b.count - a.count);
-    const topP = topProducts[0];
+    const topP = Object.values(productsMap).sort((a, b) => b.count - a.count)[0];
 
     content.innerHTML = `
         <div class="analytics-card">
             <h4><i class="fas fa-chart-line"></i> Diagnóstico de tu Negocio</h4>
-            <div style="margin-top:10px;">
-                <p><strong>🏆 Compañía Dominante:</strong> ${bestOp}</p>
-                <div class="progress-bar-wrap">
-                    <div class="progress-fill tigo-fill" style="width: ${(tigoCount/history.length)*100}%">TIGO</div>
-                    <div class="progress-fill claro-fill" style="width: ${(claroCount/history.length)*100}%">CLARO</div>
-                </div>
+            <p><strong>🏆 Compañía Dominante:</strong> ${bestOp}</p>
+            <div class="progress-bar-wrap">
+                <div class="progress-fill tigo-fill" style="width: ${(tigoCount/history.length)*100}%">TIGO</div>
+                <div class="progress-fill claro-fill" style="width: ${(claroCount/history.length)*100}%">CLARO</div>
             </div>
             <div style="margin-top:15px; padding-top:15px; border-top:1px solid var(--border);">
                 <p><strong>🔥 Tu Producto Estrella:</strong></p>
@@ -644,11 +583,60 @@ function renderAnalytics() {
     `;
 }
 
-/* --- PARTICLES ENGINE --- */
+function renderHistory() {
+    let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
+    const list = document.getElementById('history-list');
+    const dateFilter = document.getElementById('filter-date') ? document.getElementById('filter-date').value : ''; 
+    const monthFilter = document.getElementById('filter-month') ? document.getElementById('filter-month').value : ''; 
+    const searchFilter = document.getElementById('filter-search') ? document.getElementById('filter-search').value.toLowerCase() : '';
+    
+    list.innerHTML = '';
+    let validHistory = rawHistory.filter(h => h && h.id && h.phone);
+    validHistory.sort((a, b) => (b.timestamp || parseInt(b.id) || 0) - (a.timestamp || parseInt(a.id) || 0));
+    
+    const filtered = validHistory.filter(h => {
+        const safeId = h.id ? h.id.toString() : ''; const safePhone = h.phone ? h.phone.toString() : '';
+        const safeDate = h.date || ''; const safeName = h.customerName ? h.customerName.toLowerCase() : '';
+        const matchesSearch = safeId.includes(searchFilter) || safePhone.includes(searchFilter) || safeName.includes(searchFilter);
+        
+        let matchesDate = true;
+        if(dateFilter) {
+            const [y, m, d] = dateFilter.split('-'); matchesDate = safeDate.includes(`${parseInt(d)}/${parseInt(m)}/${y}`) || safeDate.includes(`${d}/${m}/${y}`);
+        }
+        let matchesMonth = true;
+        if(monthFilter) {
+            const [y, m] = monthFilter.split('-'); matchesMonth = safeDate.includes(`/${parseInt(m)}/${y}`) || safeDate.includes(`/${m}/${y}`);
+        }
+        return matchesSearch && matchesDate && matchesMonth;
+    });
+
+    currentFilteredHistory = filtered; 
+    if(filtered.length === 0) { list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-light);">No se encontraron registros.</div>'; return; }
+
+    filtered.forEach(h => {
+        const item = document.createElement('div');
+        item.className = `history-card ${h.op === 'Claro' ? 'h-claro' : 'h-tigo'}`;
+        item.innerHTML = `<div><div class="order-id">ORDEN #${h.id} - ${h.customerName || 'Cliente'}</div><div style="font-weight:bold;">${h.phone}</div><div style="font-size:0.8rem; color:var(--text-light);">${h.prod}</div></div><div class="h-price">L.${h.monto}</div>`;
+        list.appendChild(item);
+    });
+}
+
+function exportHistoryPDF() {
+    if(!currentFilteredHistory || currentFilteredHistory.length === 0) return alert("No hay órdenes.");
+    const { jsPDF } = window.jspdf; const doc = new jsPDF();
+    doc.text("Reporte Rapi Recargas ULTRA", 14, 15); doc.setFontSize(10); doc.text(`Fecha: ${new Date().toLocaleString()}`, 14, 22);
+    let tV = 0, tG = 0;
+    const tableData = currentFilteredHistory.map(h => { tV += parseInt(h.monto || 0); tG += parseInt(h.ganancia || 0); return [h.date, `#${h.id}`, h.op, h.phone, `L.${h.monto}`, `L.${h.ganancia}`]; });
+    doc.autoTable({ startY: 30, head: [['Fecha', 'ID', 'Compañía', 'Número', 'Venta', 'Ganancia']], body: tableData, theme: 'grid', headStyles: { fillColor: [255, 103, 0] } });
+    doc.save(`Reporte_RapiRecargas.pdf`);
+}
+
+/* =========================================================
+   PARTICULAS Y OPTIMIZADOR
+========================================================= */
 function initParticles() {
     const canvas = document.getElementById('particles-js');
-    if(!canvas) return;
-    const ctx = canvas.getContext('2d');
+    if(!canvas) return; const ctx = canvas.getContext('2d');
     let width, height, particles;
     const resize = () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; };
     class Particle {
@@ -659,8 +647,7 @@ function initParticles() {
         }
         update() {
             this.x += this.vx; this.y += this.vy;
-            if(this.x < 0 || this.x > width) this.vx *= -1;
-            if(this.y < 0 || this.y > height) this.vy *= -1;
+            if(this.x < 0 || this.x > width) this.vx *= -1; if(this.y < 0 || this.y > height) this.vy *= -1;
         }
         draw() {
             ctx.fillStyle = state.theme === 'dark' ? 'rgba(255,136,0,0.5)' : 'rgba(255, 103, 0, 0.6)';
@@ -673,8 +660,7 @@ function initParticles() {
         particles.forEach((p, i) => {
             p.update(); p.draw();
             for(let j=i; j<particles.length; j++){
-                const dx = particles[j].x - p.x; const dy = particles[j].y - p.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
+                const dx = particles[j].x - p.x; const dy = particles[j].y - p.y; const dist = Math.sqrt(dx*dx + dy*dy);
                 if(dist < 100){
                     ctx.strokeStyle = state.theme === 'dark' ? `rgba(255,136,0,${1 - dist/100})` : `rgba(255,103,0,${0.4 - dist/1000})`;
                     ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke();
@@ -685,30 +671,17 @@ function initParticles() {
     window.addEventListener('resize', resize); resize(); init(); animate();
 }
 
-/* =========================================================
-   🚀 MOTOR DE OPTIMIZACIÓN EXTREMA (ANTI-LAG Y RAM)
-========================================================= */
 (function initOptimizer() {
     window.isAppActive = true;
-    document.addEventListener("visibilitychange", () => {
-        window.isAppActive = !document.hidden;
-    });
-
+    document.addEventListener("visibilitychange", () => { window.isAppActive = !document.hidden; });
     const originalRequestAnimationFrame = window.requestAnimationFrame;
     window.requestAnimationFrame = function(callback) {
-        if (!window.isAppActive) {
-            setTimeout(() => window.requestAnimationFrame(callback), 1000);
-            return;
-        }
+        if (!window.isAppActive) { setTimeout(() => window.requestAnimationFrame(callback), 1000); return; }
         return originalRequestAnimationFrame(callback);
     };
-
     setTimeout(() => {
-        const inputs = document.querySelectorAll('input');
-        inputs.forEach(input => {
-            input.setAttribute('autocomplete', 'off');
-            input.setAttribute('spellcheck', 'false');
-            input.style.transform = "translateZ(0)"; 
+        document.querySelectorAll('input').forEach(input => {
+            input.setAttribute('autocomplete', 'off'); input.setAttribute('spellcheck', 'false'); input.style.transform = "translateZ(0)"; 
         });
     }, 1000);
 })();
