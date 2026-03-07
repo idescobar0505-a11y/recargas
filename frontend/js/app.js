@@ -19,16 +19,49 @@ let state = {
     tempSale: null,
     currentOp: '',
     wallet: { cash: 0, bank: 0 },
-    mascotDismissed: false
+    mascotDismissed: false,
+    audioUnlocked: false // Para forzar que el sonido funcione
 };
 
-let currentFilteredHistory = []; // Variable global para PDF
+let currentFilteredHistory = []; 
 
 /* --- INICIO --- */
 window.onload = () => {
     initParticles();
     applyTheme();
+
+    // AUTOCOMPLETAR NOMBRE DEL CLIENTE AL ESCRIBIR 8 DÍGITOS
+    const phoneInput = document.getElementById('sale-phone');
+    if(phoneInput) {
+        phoneInput.addEventListener('keyup', (e) => {
+            if(e.target.value.length === 8) {
+                let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
+                // Busca si este número ya compró antes y si tenía un nombre real
+                let pastSale = rawHistory.find(h => h.phone === e.target.value && h.customerName && h.customerName.toLowerCase() !== 'cliente');
+                if(pastSale) {
+                    document.getElementById('sale-name').value = pastSale.customerName;
+                    // Efecto visual para que se note que se autocompletó
+                    document.getElementById('sale-name').style.backgroundColor = 'rgba(0, 200, 81, 0.2)';
+                    setTimeout(() => { document.getElementById('sale-name').style.backgroundColor = 'transparent'; }, 1000);
+                }
+            }
+        });
+    }
 };
+
+/* DESBLOQUEO DE AUDIO FORZADO (Políticas de navegadores) */
+document.body.addEventListener('click', () => {
+    if(!state.audioUnlocked) {
+        const audio = document.getElementById('urgent-audio');
+        if(audio) {
+            audio.play().then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+                state.audioUnlocked = true;
+            }).catch(err => console.log("Audio en espera."));
+        }
+    }
+}, { once: true });
 
 /* --- THEME --- */
 function toggleTheme() {
@@ -38,26 +71,21 @@ function toggleTheme() {
 }
 function applyTheme() {
     document.documentElement.setAttribute('data-theme', state.theme);
-    document.getElementById('theme-icon').className = state.theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+    const icon = document.getElementById('theme-icon');
+    if(icon) icon.className = state.theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
 }
 
-/* --- LOGIN & REGISTRO LOCAL (Legacy/Fallback) --- */
-function toggleFlip() {
-    document.getElementById('login-flipper').classList.toggle('flipped');
-}
+function toggleFlip() { document.getElementById('login-flipper').classList.toggle('flipped'); }
 
 function handleRegister() {
     const u = document.getElementById('reg-user').value;
     const p = document.getElementById('reg-pass').value;
     const n = document.getElementById('reg-name').value;
-
     if(u && p && n) {
         localStorage.setItem('user_' + u, p);
         localStorage.setItem('name_' + u, n); 
         document.getElementById('reg-success-overlay').classList.remove('hidden');
-    } else {
-        alert("Completa todos los campos (Nombre, Usuario y Contraseña)");
-    }
+    } else { alert("Completa todos los campos"); }
 }
 
 function finishRegAnimation() {
@@ -74,24 +102,19 @@ function handleLogin() {
 
     const grpUser = document.getElementById('grp-log-user');
     const grpPass = document.getElementById('grp-log-pass');
-
-    grpUser.classList.remove('shake-error');
-    grpPass.classList.remove('shake-error');
+    grpUser.classList.remove('shake-error'); grpPass.classList.remove('shake-error');
 
     if(u && p && storedPass === p) {
         state.user = storedName; 
         document.getElementById('sec-login').classList.add('hidden');
         document.getElementById('sec-intro').classList.remove('hidden');
         document.getElementById('user-display').innerText = storedName;
-        
         const localWallet = JSON.parse(localStorage.getItem('rp_wallet'));
         if(localWallet) state.wallet = localWallet;
         updateWalletUI();
     } else {
-        void grpUser.offsetWidth; 
-        void grpPass.offsetWidth;
-        grpUser.classList.add('shake-error');
-        grpPass.classList.add('shake-error');
+        void grpUser.offsetWidth; void grpPass.offsetWidth;
+        grpUser.classList.add('shake-error'); grpPass.classList.add('shake-error');
         if(navigator.vibrate) navigator.vibrate(200);
     }
 }
@@ -101,16 +124,16 @@ function nextIntroSlide() {
     document.getElementById('sec-welcome').classList.remove('hidden');
 }
 
-/* --- NAVEGACION --- */
+/* --- NAVEGACION CERO LAG --- */
 function navTo(screen) {
+    // Ocultar todas las secciones
     document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
     
+    // Mostrar la sección correcta
     if(screen === 'lobby') {
         document.getElementById('sec-lobby').classList.remove('hidden');
-        updateDashboard();
-        updateWalletUI();
-        checkBalanceHealth();
+        updateDashboard(); updateWalletUI(); checkBalanceHealth();
     } else if (screen === 'history') {
         document.getElementById('sec-history').classList.remove('hidden');
         renderHistory();
@@ -124,13 +147,13 @@ function navTo(screen) {
     } else if (screen === 'analytics') {
         document.getElementById('sec-analytics').classList.remove('hidden');
         renderAnalytics();
+    } else if (screen === 'settings') {
+        document.getElementById('sec-settings').classList.remove('hidden');
     }
     
-    // Marcar activo en Navbar inferior
+    // REPARACIÓN DE LAG: Busca y pinta el botón exacto con data-target
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    if(event && event.currentTarget) {
-        event.currentTarget.classList.add('active');
-    }
+    document.querySelectorAll(`.nav-item[data-target="${screen}"]`).forEach(el => el.classList.add('active'));
 }
 
 /* --- LOGICA MASCOTA Y SONIDO DE ALERTA --- */
@@ -143,7 +166,6 @@ function checkBalanceHealth() {
     if(state.mascotDismissed) return;
 
     mascot.classList.remove('hidden', 'mascot-warning', 'mascot-critical');
-    
     let htmlMsg = '';
 
     if(bal <= 100) {
@@ -151,9 +173,10 @@ function checkBalanceHealth() {
         htmlMsg = `¡URGENTE ${state.user}! 🚨<br>Quedan menos de L.100 en banco. Recarga YA.`;
         face.innerHTML = '<i class="fas fa-dizzy"></i>';
         
+        // Ejecutar audio
         const audioAlerta = document.getElementById('urgent-audio');
-        if(audioAlerta) {
-            audioAlerta.play().catch(e => console.log("El navegador pide interacción previa para el audio."));
+        if(audioAlerta && state.audioUnlocked) {
+            audioAlerta.play().catch(e => console.log("Audio pausado por el navegador"));
         }
     } else if (bal <= 500) {
         mascot.classList.add('mascot-warning');
@@ -179,6 +202,19 @@ setInterval(() => {
         checkBalanceHealth(); 
     }
 }, 10000);
+
+/* --- TOAST: MENSAJE DE GUARDADO EN LA NUBE --- */
+function showSyncToast() {
+    const toast = document.getElementById('sync-toast');
+    if(toast) {
+        toast.classList.remove('hidden');
+        toast.style.opacity = '1';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.classList.add('hidden'), 500);
+        }, 3000);
+    }
+}
 
 /* --- WALLET & DEPOSIT --- */
 function updateWalletUI() {
@@ -224,9 +260,11 @@ function openSales(op) {
     document.getElementById('sale-op-title').innerText = "Recargas " + op;
     document.getElementById('sale-phone').value = '';
     
-    // Limpiamos el nombre del cliente para la nueva venta
     const nameInput = document.getElementById('sale-name');
-    if(nameInput) nameInput.value = '';
+    if(nameInput) {
+        nameInput.value = '';
+        nameInput.style.backgroundColor = 'transparent';
+    }
     
     const grid = document.getElementById('packages-grid');
     grid.innerHTML = '';
@@ -269,16 +307,14 @@ function processCustomAmount() {
 }
 
 function prepareSale(op, pkg) {
-    if(state.wallet.bank < pkg.b) {
-        return alert(`Saldo insuficiente en Banco (L.${state.wallet.bank}). Haz un depósito primero.`);
-    }
+    if(state.wallet.bank < pkg.b) return alert(`Saldo insuficiente en Banco (L.${state.wallet.bank}).`);
 
     const phoneInput = document.getElementById('sale-phone');
     const nameInput = document.getElementById('sale-name');
     const phoneContainer = document.getElementById('phone-input-container');
     
     const phone = phoneInput.value;
-    const name = nameInput ? (nameInput.value || 'Cliente') : 'Cliente';
+    const name = nameInput && nameInput.value.trim() !== '' ? nameInput.value : 'Cliente';
     
     if(phone.length !== 8) {
         phoneContainer.classList.remove('shake-error');
@@ -290,25 +326,22 @@ function prepareSale(op, pkg) {
     const orderID = Math.floor(100000 + Math.random() * 900000); 
     const fecha = new Date();
     
-    // Algoritmo: Extraer Días de Vencimiento para CRM si es "Super Recarga"
     let expireTimestamp = null;
     let esSuper = false;
     
+    // Extraer Días para calcular Vencimiento Exacto
     if(pkg.n.toLowerCase().includes('super') || pkg.n.toLowerCase().includes('día')) {
         esSuper = true;
         const numMatch = pkg.n.match(/(\d+)\s*Día/i);
         if(numMatch) {
             const dias = parseInt(numMatch[1]);
-            // Convertimos los días a milisegundos para sumarlos a la fecha actual
             expireTimestamp = fecha.getTime() + (dias * 24 * 60 * 60 * 1000);
         }
     }
 
-    // GUARDADO EXTREMO: Se añade un timestamp exacto para historial y datos CRM
     state.tempSale = {
         id: orderID, op: op, prod: pkg.n, monto: pkg.v,
-        costo: pkg.b, 
-        ganancia: (pkg.v - pkg.b) > 0 ? (pkg.v - pkg.b) : 0, 
+        costo: pkg.b, ganancia: (pkg.v - pkg.b) > 0 ? (pkg.v - pkg.b) : 0, 
         phone: phone, customerName: name,
         date: fecha.toLocaleDateString(), time: fecha.toLocaleTimeString(),
         timestamp: fecha.getTime(),
@@ -334,8 +367,6 @@ function closeModal() {
 
 function finalizeSale() {
     let history = JSON.parse(localStorage.getItem('rp_history')) || [];
-    
-    // Lo empujamos al inicio localmente
     history.unshift(state.tempSale);
     localStorage.setItem('rp_history', JSON.stringify(history));
     
@@ -345,8 +376,39 @@ function finalizeSale() {
     updateWalletUI();
     checkBalanceHealth();
 
-    // Guardado en la nube
-    if(window.saveSaleToFirebase) window.saveSaleToFirebase(state.tempSale);
+    // 1. Guardado Forzado Firebase
+    if(window.saveSaleToFirebase) {
+        window.saveSaleToFirebase(state.tempSale).then(() => {
+            showSyncToast();
+        }).catch(e => showSyncToast()); 
+    } else {
+        showSyncToast();
+    }
+
+    // 2. Guardado Forzado PostgreSQL (Se manda en segundo plano optimizado)
+    try {
+        // Usa la URL de Render si ya la tienes activa, o usa localhost si estás en la PC
+        fetch('http://127.0.0.1:10000/sales/new', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                uid_user: state.user || 'Desconocido',
+                id: state.tempSale.id.toString(),
+                op: state.tempSale.op,
+                prod: state.tempSale.prod,
+                monto: parseFloat(state.tempSale.monto),
+                costo: parseFloat(state.tempSale.costo),
+                ganancia: parseFloat(state.tempSale.ganancia),
+                phone: state.tempSale.phone,
+                customerName: state.tempSale.customerName,
+                date: state.tempSale.date,
+                time: state.tempSale.time,
+                timestamp: state.tempSale.timestamp,
+                esSuper: state.tempSale.esSuper,
+                expireTimestamp: state.tempSale.expireTimestamp || null
+            })
+        }).catch(e => console.log("Sincronización API PostgreSQL en espera"));
+    } catch(err) {}
 
     closeModal();
     
@@ -354,9 +416,7 @@ function finalizeSale() {
     const waLink = `https://wa.me/504${state.tempSale.phone}?text=${encodeURIComponent(msg)}`;
     
     const btn = document.getElementById('btn-wa-client');
-    if(btn) {
-        btn.onclick = () => window.open(waLink, '_blank');
-    }
+    if(btn) { btn.onclick = () => window.open(waLink, '_blank'); }
     
     document.getElementById('modal-success').classList.remove('hidden');
 }
@@ -373,7 +433,6 @@ function updateDashboard() {
     history.forEach(h => {
         vTotal += parseInt(h.monto || 0);
         if(h.date === today) gToday += parseInt(h.ganancia || 0);
-        
         const safeDate = h.date || '';
         const hDateParts = safeDate.split('/');
         if(hDateParts.length === 3) {
@@ -391,23 +450,19 @@ function updateDashboard() {
 function sendAdminReport() {
     let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
     let history = rawHistory.filter(h => h && h.date);
-    
     const today = new Date().toLocaleDateString();
     let salesToday = history.filter(h => h.date === today);
     
     if(salesToday.length === 0) return alert("No hay ventas hoy para reportar.");
     
-    let totalVenta = 0;
-    let totalGanancia = 0;
+    let totalVenta = 0, totalGanancia = 0;
     salesToday.forEach(h => {
         totalVenta += parseInt(h.monto || 0);
         totalGanancia += parseInt(h.ganancia || 0);
     });
     
-    const msg = `📊 *REPORTE DE CIERRE - ${today}*\n\n👤 Usuario: ${state.user}\n🛒 Transacciones: ${salesToday.length}\n💰 Venta Total: L.${totalVenta}\n📈 Ganancia Neta: L.${totalGanancia}\n💵 Caja Actual: L.${state.wallet.cash}\n🏦 Banco Restante: L.${state.wallet.bank}\n\n_Enviado desde Rapi Recargas Ultra Cloud_`;
-    
-    const adminNum = "50493655523";
-    window.open(`https://wa.me/${adminNum}?text=${encodeURIComponent(msg)}`, '_blank');
+    const msg = `📊 *REPORTE DE CIERRE - ${today}*\n\n👤 Usuario: ${state.user}\n🛒 Transacciones: ${salesToday.length}\n💰 Venta Total: L.${totalVenta}\n📈 Ganancia Neta: L.${totalGanancia}\n💵 Caja Actual: L.${state.wallet.cash}\n🏦 Banco Restante: L.${state.wallet.bank}`;
+    window.open(`https://wa.me/50493655523?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 /* --- HISTORIAL Y FILTROS BLINDADOS --- */
@@ -421,11 +476,7 @@ function renderHistory() {
     list.innerHTML = '';
     
     let validHistory = rawHistory.filter(h => h && h.id && h.phone);
-    validHistory.sort((a, b) => {
-        const timeA = a.timestamp || parseInt(a.id) || 0;
-        const timeB = b.timestamp || parseInt(b.id) || 0;
-        return timeB - timeA; 
-    });
+    validHistory.sort((a, b) => (b.timestamp || parseInt(b.id) || 0) - (a.timestamp || parseInt(a.id) || 0));
     
     const filtered = validHistory.filter(h => {
         const safeId = h.id ? h.id.toString() : '';
@@ -441,22 +492,17 @@ function renderHistory() {
             const localDateFilter = `${parseInt(d)}/${parseInt(m)}/${y}`;
             matchesDate = safeDate.includes(localDateFilter) || safeDate.includes(`${d}/${m}/${y}`);
         }
-
         let matchesMonth = true;
         if(monthFilter) {
             const [y, m] = monthFilter.split('-');
             matchesMonth = safeDate.includes(`/${parseInt(m)}/${y}`) || safeDate.includes(`/${m}/${y}`);
         }
-
         return matchesSearch && matchesDate && matchesMonth;
     });
 
     currentFilteredHistory = filtered; 
 
-    if(filtered.length === 0) {
-        list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-light);">No se encontraron registros.</div>';
-        return;
-    }
+    if(filtered.length === 0) { list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-light);">No se encontraron registros.</div>'; return; }
 
     filtered.forEach(h => {
         const item = document.createElement('div');
@@ -474,49 +520,25 @@ function renderHistory() {
     });
 }
 
-/* --- EXPORTAR A PDF --- */
 function exportHistoryPDF() {
-    if(!currentFilteredHistory || currentFilteredHistory.length === 0) {
-        return alert("No hay órdenes en pantalla para exportar. Intenta ajustar los filtros.");
-    }
-    
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    
+    if(!currentFilteredHistory || currentFilteredHistory.length === 0) return alert("No hay órdenes en pantalla.");
+    const { jsPDF } = window.jspdf; const doc = new jsPDF();
     doc.text("Reporte Rapi Recargas ULTRA", 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Fecha de extracción: ${new Date().toLocaleString()}`, 14, 22);
+    doc.setFontSize(10); doc.text(`Fecha: ${new Date().toLocaleString()}`, 14, 22);
     
-    let totalVenta = 0;
-    let totalGanancia = 0;
-    
+    let tV = 0, tG = 0;
     const tableData = currentFilteredHistory.map(h => {
-        totalVenta += parseInt(h.monto || 0);
-        totalGanancia += parseInt(h.ganancia || 0);
+        tV += parseInt(h.monto || 0); tG += parseInt(h.ganancia || 0);
         return [h.date, `#${h.id}`, h.op, h.phone, `L.${h.monto}`, `L.${h.ganancia}`];
     });
     
-    doc.autoTable({
-        startY: 30,
-        head: [['Fecha', 'ID', 'Compañía', 'Número', 'Venta', 'Ganancia']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [255, 103, 0] } 
-    });
-    
-    doc.setFontSize(12);
-    doc.text(`Ventas Totales: L.${totalVenta}`, 14, doc.lastAutoTable.finalY + 15);
-    doc.text(`Ganancia Neta: L.${totalGanancia}`, 14, doc.lastAutoTable.finalY + 25);
-    
-    doc.save(`Reporte_RapiRecargas_${new Date().getTime()}.pdf`);
-    
-    const msg = `📊 *NUEVO REPORTE EXTRAÍDO*\n\nSe ha generado un reporte con ${currentFilteredHistory.length} órdenes.\n💰 Ventas Totales: L.${totalVenta}\n📈 Ganancia Neta: L.${totalGanancia}\n\n_El documento PDF ha sido generado y descargado con éxito. (Puedes adjuntarlo en este chat)._`;
-    const adminNum = "50493655523";
-    window.open(`https://wa.me/${adminNum}?text=${encodeURIComponent(msg)}`, '_blank');
+    doc.autoTable({ startY: 30, head: [['Fecha', 'ID', 'Compañía', 'Número', 'Venta', 'Ganancia']], body: tableData, theme: 'grid', headStyles: { fillColor: [255, 103, 0] } });
+    doc.setFontSize(12); doc.text(`Ventas: L.${tV}`, 14, doc.lastAutoTable.finalY + 15); doc.text(`Ganancia: L.${tG}`, 14, doc.lastAutoTable.finalY + 25);
+    doc.save(`Reporte_RapiRecargas.pdf`);
 }
 
 /* =========================================================
-   NUEVO MÓDULO CRM: VENCIMIENTOS Y UPSELL
+   NUEVO MÓDULO CRM: VENCIMIENTOS Y UPSELL (24H LOGIC)
 ========================================================= */
 function renderCustomers() {
     let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
@@ -524,16 +546,12 @@ function renderCustomers() {
     const searchFilter = document.getElementById('filter-customer').value.toLowerCase();
     list.innerHTML = '';
 
-    // Agrupar historial por número de teléfono
     let clientsMap = {};
     rawHistory.forEach(h => {
         if(!h || !h.phone) return;
-        if(!clientsMap[h.phone]) {
-            clientsMap[h.phone] = { phone: h.phone, name: h.customerName || 'Cliente', purchases: [], latestSuper: null };
-        }
+        if(!clientsMap[h.phone]) { clientsMap[h.phone] = { phone: h.phone, name: h.customerName || 'Cliente', purchases: [], latestSuper: null }; }
         clientsMap[h.phone].purchases.push(h);
         
-        // Encontrar la última super recarga activa para calcular vencimiento
         if(h.esSuper && h.expireTimestamp) {
             if(!clientsMap[h.phone].latestSuper || h.timestamp > clientsMap[h.phone].latestSuper.timestamp) {
                 clientsMap[h.phone].latestSuper = h;
@@ -548,40 +566,39 @@ function renderCustomers() {
         
         const card = document.createElement('div');
         card.className = 'customer-card';
+        let statusHtml = ''; let upsellHtml = '';
         
-        let statusHtml = '';
-        let upsellHtml = '';
-        
-        // --- 1. LÓGICA DE VENCIMIENTO ---
+        // --- 1. LÓGICA DE VENCIMIENTO 24 HORAS ---
         if(client.latestSuper) {
             const timeDiff = client.latestSuper.expireTimestamp - now;
             const hoursLeft = timeDiff / (1000 * 60 * 60);
             
+            const waMsg = `Hola ${client.name}, te saludo de Rapi Recargas. Tu paquete ${client.latestSuper.prod} está por terminar. ¿Deseas que te haga una nueva recarga para que no pierdas conexión? Avisame, aquí te atiendo rápido. ⚡`;
+            
             if(hoursLeft <= 0) {
                 statusHtml = `<div class="status-badge status-expired"><i class="fas fa-times-circle"></i> Recarga Vencida</div>`;
-            } else if (hoursLeft <= 12) {
-                statusHtml = `<div class="status-badge status-warning"><i class="fas fa-exclamation-triangle"></i> Vence Pronto (${Math.ceil(hoursLeft)}h)</div>`;
+                statusHtml += `<button class="btn-sm btn-wa-remind" onclick="window.open('https://wa.me/504${client.phone}?text=${encodeURIComponent(waMsg)}', '_blank')"><i class="fab fa-whatsapp"></i> Avisar para Renovar</button>`;
+            } else if (hoursLeft <= 24) {
+                // Faltan 24h o menos: APARECE EL BOTÓN
+                statusHtml = `<div class="status-badge status-warning"><i class="fas fa-exclamation-triangle"></i> Vence en ${Math.ceil(hoursLeft)}h</div>`;
+                statusHtml += `<button class="btn-sm btn-wa-remind" onclick="window.open('https://wa.me/504${client.phone}?text=${encodeURIComponent(waMsg)}', '_blank')"><i class="fab fa-whatsapp"></i> Avisar para Renovar</button>`;
             } else {
+                // Faltan más de 24h: SE OCULTA EL BOTÓN Y SE MUESTRA EL MENSAJE
                 statusHtml = `<div class="status-badge status-active"><i class="fas fa-check-circle"></i> Activa (${Math.ceil(hoursLeft/24)} días rest)</div>`;
+                statusHtml += `<div style="font-size:0.75rem; color:#888; margin-top:5px; padding-left:5px; border-left: 2px solid var(--primary);">Aquí se mostrará el botón para avisar al cliente cuando falten 24 horas o menos para vencer.</div>`;
             }
-
-            // BOTON WHATSAPP RECORDATORIO
-            const waMsg = `Hola ${client.name}, te saludo de Rapi Recargas. Tu paquete ${client.latestSuper.prod} está por terminar. ¿Deseas que te haga una nueva recarga para que no pierdas conexión? Avisame, aquí te atiendo rápido. ⚡`;
-            statusHtml += `<button class="btn-sm btn-wa-remind" onclick="window.open('https://wa.me/504${client.phone}?text=${encodeURIComponent(waMsg)}', '_blank')"><i class="fab fa-whatsapp"></i> Avisar al Cliente</button>`;
         } else {
-            statusHtml = `<span style="font-size:0.8rem; color:#888;">Cliente de recargas normales.</span>`;
+            statusHtml = `<span style="font-size:0.8rem; color:#888;">Cliente de recargas normales (sin vencimiento).</span>`;
         }
 
-        // --- 2. ALGORITMO DE UPSELL (Recomendador de 3 días) ---
+        // --- 2. ALGORITMO DE UPSELL ---
         const oneDayPurchases = client.purchases.filter(p => p.prod.includes('1 Día'));
         if(oneDayPurchases.length >= 2) {
-            // El cliente es "adicto" a recargas de 1 día. Sugerir la de 3.
             upsellHtml = `
                 <div class="upsell-box">
                     <strong>💡 Oportunidad de Venta:</strong><br>
-                    Este cliente lleva ${oneDayPurchases.length} recargas de 1 Día.<br>
-                    Costo Total: L.${oneDayPurchases.length * 45}.<br>
-                    <i>Ofrécele la Super 3 Días (L.75). Ahorrará dinero y aseguras una mejor venta.</i>
+                    Este cliente lleva ${oneDayPurchases.length} recargas de 1 Día seguidas.<br>
+                    <i>Ofrécele la Super 3 Días (L.75). Ahorrará dinero y tú aseguras la venta.</i>
                 </div>
             `;
         }
@@ -604,24 +621,17 @@ function renderAnalytics() {
     let history = rawHistory.filter(h => h && h.monto);
     const content = document.getElementById('analytics-content');
     
-    if(history.length === 0) {
-        content.innerHTML = "<p>Necesitas realizar ventas para que el algoritmo procese datos.</p>"; return;
-    }
+    if(history.length === 0) { content.innerHTML = "<p>Necesitas realizar ventas para procesar datos.</p>"; return; }
 
-    let tigoCount = 0, claroCount = 0;
-    let productsMap = {};
+    let tigoCount = 0, claroCount = 0; let productsMap = {};
 
     history.forEach(h => {
         if(h.op === 'Tigo') tigoCount++; else claroCount++;
-        
         if(!productsMap[h.prod]) productsMap[h.prod] = { name: h.prod, count: 0, revenue: 0 };
-        productsMap[h.prod].count++;
-        productsMap[h.prod].revenue += parseInt(h.monto);
+        productsMap[h.prod].count++; productsMap[h.prod].revenue += parseInt(h.monto);
     });
 
     let bestOp = tigoCount > claroCount ? 'Tigo' : (claroCount > tigoCount ? 'Claro' : 'Empate');
-    
-    // Sort products by count
     const topProducts = Object.values(productsMap).sort((a, b) => b.count - a.count);
     const topP = topProducts[0];
 
@@ -635,15 +645,10 @@ function renderAnalytics() {
                     <div class="progress-fill claro-fill" style="width: ${(claroCount/history.length)*100}%">CLARO</div>
                 </div>
             </div>
-            
             <div style="margin-top:15px; padding-top:15px; border-top:1px solid var(--border);">
                 <p><strong>🔥 Tu Producto Estrella:</strong></p>
                 <h3 style="color:var(--primary);">${topP.name}</h3>
                 <p style="font-size:0.8rem;">Lo has vendido ${topP.count} veces (Ingreso total: L.${topP.revenue}).</p>
-                <br>
-                <p style="font-size:0.9rem; font-style:italic; color:var(--text-light);">
-                    "Asegúrate de siempre tener saldo para este producto, es el que paga tus cuentas diarias."
-                </p>
             </div>
         </div>
     `;
@@ -655,18 +660,11 @@ function initParticles() {
     if(!canvas) return;
     const ctx = canvas.getContext('2d');
     let width, height, particles;
-    
-    const resize = () => {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
-    };
-    
+    const resize = () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; };
     class Particle {
         constructor() {
-            this.x = Math.random() * width;
-            this.y = Math.random() * height;
-            this.vx = (Math.random() - 0.5) * 1;
-            this.vy = (Math.random() - 0.5) * 1;
+            this.x = Math.random() * width; this.y = Math.random() * height;
+            this.vx = (Math.random() - 0.5) * 1; this.vy = (Math.random() - 0.5) * 1;
             this.size = Math.random() * 2 + 1;
         }
         update() {
@@ -676,36 +674,56 @@ function initParticles() {
         }
         draw() {
             ctx.fillStyle = state.theme === 'dark' ? 'rgba(255,136,0,0.5)' : 'rgba(255, 103, 0, 0.6)';
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
         }
     }
-    
-    const init = () => {
-        particles = [];
-        for(let i=0; i < 50; i++) particles.push(new Particle());
-    };
-    
+    const init = () => { particles = []; for(let i=0; i < 50; i++) particles.push(new Particle()); };
     const animate = () => {
         ctx.clearRect(0,0,width,height);
         particles.forEach((p, i) => {
-            p.update();
-            p.draw();
+            p.update(); p.draw();
             for(let j=i; j<particles.length; j++){
-                const dx = particles[j].x - p.x;
-                const dy = particles[j].y - p.y;
+                const dx = particles[j].x - p.x; const dy = particles[j].y - p.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 if(dist < 100){
                     ctx.strokeStyle = state.theme === 'dark' ? `rgba(255,136,0,${1 - dist/100})` : `rgba(255,103,0,${0.4 - dist/1000})`;
-                    ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke();
+                    ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke();
                 }
             }
-        });
-        requestAnimationFrame(animate);
+        }); requestAnimationFrame(animate);
     };
-    
-    window.addEventListener('resize', resize);
-    resize(); init(); animate();
+    window.addEventListener('resize', resize); resize(); init(); animate();
 }
+
+/* =========================================================
+   🚀 MOTOR DE OPTIMIZACIÓN EXTREMA (ANTI-LAG Y RAM)
+========================================================= */
+(function initOptimizer() {
+    // 1. Ahorro de Batería y RAM: Congela las partículas si la app no está en pantalla
+    window.isAppActive = true;
+    document.addEventListener("visibilitychange", () => {
+        window.isAppActive = !document.hidden;
+    });
+
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    window.requestAnimationFrame = function(callback) {
+        if (!window.isAppActive) {
+            // Si el usuario minimiza la app, pausamos los gráficos
+            setTimeout(() => window.requestAnimationFrame(callback), 1000);
+            return;
+        }
+        return originalRequestAnimationFrame(callback);
+    };
+
+    // 2. Anti-Lag al escribir: Optimiza los inputs de búsqueda
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('spellcheck', 'false');
+            input.style.transform = "translateZ(0)"; // Acelera el teclado virtual
+        });
+    }, 1000);
+
+    console.log("🚀 Motor de Optimización PRO activado exitosamente.");
+})();

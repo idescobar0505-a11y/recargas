@@ -443,3 +443,25 @@ button { cursor: pointer; user-select: none; }
     50% { transform: translateY(-10px); } 
     100% { transform: translateY(0); } 
 }
+
+/* =========================================================
+🚀 ACELERADOR GRÁFICO PRO (FLUIDEZ EXTREMA)
+========================================================= */
+* {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Forzamos a la Tarjeta de Video (GPU) a procesar los elementos pesados */
+.app-shell, .op-btn-pro, .customer-card, .history-card, .modal-sheet, .glass-panel, .bottom-nav {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+/* Habilita el "Scroll de inercia" nativo en pantallas táctiles iOS/Android */
+div[style*="overflow-y: auto"], #history-list, #customers-list {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+}

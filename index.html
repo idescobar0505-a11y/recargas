@@ -6,7 +6,7 @@
     <title>Rapi Recargas ULTRA - Cloud PRO</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/frontend/css/style.css">
+    <link rel="stylesheet" href="./css/style.css">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -15,13 +15,8 @@
 
     <canvas id="particles-js"></canvas>
 
-    <div class="top-icons">
-        <div class="icon-btn theme-switch" onclick="toggleTheme()">
-            <i class="fas fa-moon" id="theme-icon"></i>
-        </div>
-        <div class="icon-btn" onclick="navTo('help')">
-            <i class="fas fa-question"></i>
-        </div>
+    <div id="sync-toast" class="hidden" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 10px 20px; border-radius: 20px; z-index: 9999; box-shadow: var(--shadow); font-weight: bold; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; transition: opacity 0.5s;">
+        <i class="fas fa-cloud-upload-alt"></i> Guardado correctamente
     </div>
 
     <section id="sec-login">
@@ -52,7 +47,7 @@
                     <button class="btn-mega" onclick="handleLogin()">INICIAR SESIÓN</button>
                     <div class="switch-link" onclick="toggleFlip()">¿No tienes cuenta? Regístrate</div>
                     <div style="margin-top: 20px; font-size: 0.8rem; opacity: 0.7;">
-                        <i class="fas fa-lock"></i> Datos Encriptados por Firebase
+                        <i class="fas fa-lock"></i> Datos en PostgreSQL y Firebase
                     </div>
                 </div>
 
@@ -105,7 +100,7 @@
         <div class="intro-card">
             <div class="logo-3d"><i class="fas fa-rocket"></i></div>
             <h3>¡Bienvenido a Rapi Recargas!</h3>
-            <p style="margin: 20px 0; color:var(--text-light);">Todo listo para vender. Usa el botón de WhatsApp si necesitas soporte directo.</p>
+            <p style="margin: 20px 0; color:var(--text-light);">Todo listo para vender.</p>
             <button class="btn-mega" onclick="navTo('lobby')">ENTRAR AL SISTEMA</button>
         </div>
     </section>
@@ -166,35 +161,14 @@
                 <i class="fab fa-whatsapp fa-2x"></i>
                 <span>ENVIAR CIERRE DEL DÍA</span>
             </button>
-            
-            <button class="btn-logout-pro" onclick="logout()">
-                <i class="fas fa-sign-out-alt"></i> CERRAR SESIÓN
-            </button>
         </div>
 
         <div class="bottom-nav">
-            <div class="nav-item active" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
-            <div class="nav-item" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
-            <div class="nav-item" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
-            <div class="nav-item" onclick="navTo('history')"><i class="fas fa-history"></i></div>
-        </div>
-    </section>
-
-    <section id="sec-help" class="app-shell hidden">
-        <div class="top-bar">
-            <button onclick="navTo('lobby')" style="background:none; border:none; font-size:1.5rem; color:var(--text);"><i class="fas fa-arrow-left"></i></button>
-            <h2 style="margin-top:10px;">Centro de Ayuda</h2>
-        </div>
-        <div class="help-content">
-            <div class="help-item">
-                <h4><i class="fas fa-book"></i> ¿Cómo recargar saldo?</h4>
-                <p style="font-size:0.9rem; color:var(--text-light);">Para vender, necesitas saldo en tu banco. Ve al Lobby y presiona "+ DEPOSITO" para registrar un ingreso de capital.</p>
-            </div>
-            <div class="help-item">
-                <h4><i class="fas fa-exclamation-triangle"></i> Reportar Fallo</h4>
-                <p style="font-size:0.9rem; color:var(--text-light);">Si el sistema falla, contacta a soporte técnico inmediatamente.</p>
-                <button class="btn-mega" style="margin-top:10px; font-size:0.9rem;" onclick="window.open('https://wa.me/50493655523')">Contactar Soporte</button>
-            </div>
+            <div class="nav-item active" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
+            <div class="nav-item" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
+            <div class="nav-item" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
+            <div class="nav-item" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+            <div class="nav-item" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
         </div>
     </section>
 
@@ -208,7 +182,7 @@
                 <input type="tel" id="sale-phone" placeholder="Número del Cliente (8 dígitos)" maxlength="8" style="text-align:center; font-size:1.5rem; letter-spacing:2px; font-weight:bold;">
             </div>
             <div class="input-floating" style="margin-bottom: 25px;">
-                <input type="text" id="sale-name" placeholder="Nombre del Cliente (Opcional)" style="text-align:center; font-size:1rem;">
+                <input type="text" id="sale-name" placeholder="Nombre del Cliente (Opcional)" style="text-align:center; font-size:1rem; color: var(--primary); font-weight: bold;">
             </div>
 
             <h4 style="margin-bottom:15px; color:var(--text-light);">Selecciona Monto</h4>
@@ -224,12 +198,13 @@
             <input type="text" id="filter-customer" class="search-input" placeholder="Buscar por nombre o número..." onkeyup="renderCustomers()" style="width:100%; margin-top: 15px;">
         </div>
         <div id="customers-list" style="padding: 20px; padding-bottom: 100px; overflow-y: auto;">
-            </div>
+        </div>
         <div class="bottom-nav">
-            <div class="nav-item" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
-            <div class="nav-item active" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
-            <div class="nav-item" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
-            <div class="nav-item" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+            <div class="nav-item" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
+            <div class="nav-item active" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
+            <div class="nav-item" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
+            <div class="nav-item" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+            <div class="nav-item" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
         </div>
     </section>
 
@@ -240,7 +215,7 @@
         </div>
         <div style="padding: 20px; padding-bottom: 100px; overflow-y: auto;">
             <div id="analytics-content">
-                </div>
+            </div>
 
             <div class="academy-card" style="margin-top:20px;">
                 <h3><i class="fas fa-graduation-cap"></i> Academia de Ventas PRO</h3>
@@ -252,10 +227,11 @@
             </div>
         </div>
         <div class="bottom-nav">
-            <div class="nav-item" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
-            <div class="nav-item" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
-            <div class="nav-item active" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
-            <div class="nav-item" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+            <div class="nav-item" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
+            <div class="nav-item" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
+            <div class="nav-item active" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
+            <div class="nav-item" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+            <div class="nav-item" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
         </div>
     </section>
 
@@ -274,10 +250,46 @@
         <div id="history-list" style="padding: 20px; padding-bottom: 100px; overflow-y: auto;">
         </div>
         <div class="bottom-nav">
-            <div class="nav-item" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
-            <div class="nav-item" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
-            <div class="nav-item" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
-            <div class="nav-item active" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+            <div class="nav-item" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
+            <div class="nav-item" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
+            <div class="nav-item" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
+            <div class="nav-item active" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+            <div class="nav-item" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
+        </div>
+    </section>
+
+    <section id="sec-settings" class="app-shell hidden">
+        <div class="top-bar">
+            <h2>Ajustes</h2>
+            <p style="font-size:0.8rem; color:var(--text-light);">Configuración de cuenta y sistema.</p>
+        </div>
+        <div style="padding: 20px; padding-bottom: 100px; overflow-y: auto;">
+            
+            <button class="btn-mega" onclick="toggleTheme()" style="background: var(--card-bg); color: var(--text); border: 2px solid var(--border); box-shadow: none;">
+                <i class="fas fa-moon" id="theme-icon" style="margin-right:10px;"></i> CAMBIAR MODO OSCURO
+            </button>
+
+            <div class="help-item" style="margin-top:20px;">
+                <h4><i class="fas fa-book"></i> ¿Cómo recargar saldo?</h4>
+                <p style="font-size:0.9rem; color:var(--text-light);">Para vender, necesitas saldo en tu banco. Ve al Lobby y presiona "+ DEPOSITO" para registrar un ingreso de capital.</p>
+            </div>
+            <div class="help-item">
+                <h4><i class="fas fa-exclamation-triangle"></i> Reportar Fallo</h4>
+                <p style="font-size:0.9rem; color:var(--text-light);">Si el sistema falla, contacta a soporte técnico inmediatamente.</p>
+                <button class="btn-mega" style="margin-top:10px; font-size:0.9rem;" onclick="window.open('https://wa.me/50493655523')">Contactar Soporte</button>
+            </div>
+
+            <button class="btn-logout-pro" onclick="logout()" style="margin-top:30px; width:100%;">
+                <i class="fas fa-sign-out-alt"></i> CERRAR SESIÓN
+            </button>
+
+        </div>
+        <div class="bottom-nav">
+            <div class="nav-item" data-target="lobby" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
+            <div class="nav-item" data-target="customers" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
+            <div class="nav-item" data-target="analytics" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
+            <div class="nav-item" data-target="history" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+            <div class="nav-item active" data-target="settings" onclick="navTo('settings')"><i class="fas fa-cog"></i></div>
         </div>
     </section>
 
@@ -359,8 +371,8 @@
 
     <audio id="urgent-audio" src="/alerta.mp3" preload="auto"></audio>
 
-    <script src="/frontend/js/firebase-config.js"></script>
-    <script src="/frontend/js/app.js"></script>
+    <script src="./js/firebase-config.js" type="module"></script>
+    <script src="./js/app.js"></script>
 
 </body>
 </html>
