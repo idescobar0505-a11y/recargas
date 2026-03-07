@@ -14,13 +14,13 @@ const PRECIOS = {
 };
 
 let state = {
-    user: localStorage.getItem('rp_user') || null,
+    user: localStorage.getItem('rp_user') || 'Usuario',
     theme: localStorage.getItem('rp_theme') || 'light',
     tempSale: null,
     currentOp: '',
     wallet: { cash: 0, bank: 0 },
     mascotDismissed: false,
-    audioUnlocked: false // Para forzar que el sonido funcione
+    audioUnlocked: false
 };
 
 let currentFilteredHistory = []; 
@@ -36,11 +36,9 @@ window.onload = () => {
         phoneInput.addEventListener('keyup', (e) => {
             if(e.target.value.length === 8) {
                 let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
-                // Busca si este número ya compró antes y si tenía un nombre real
                 let pastSale = rawHistory.find(h => h.phone === e.target.value && h.customerName && h.customerName.toLowerCase() !== 'cliente');
                 if(pastSale) {
                     document.getElementById('sale-name').value = pastSale.customerName;
-                    // Efecto visual para que se note que se autocompletó
                     document.getElementById('sale-name').style.backgroundColor = 'rgba(0, 200, 81, 0.2)';
                     setTimeout(() => { document.getElementById('sale-name').style.backgroundColor = 'transparent'; }, 1000);
                 }
@@ -77,6 +75,7 @@ function applyTheme() {
 
 function toggleFlip() { document.getElementById('login-flipper').classList.toggle('flipped'); }
 
+// Fallback de Registro Clásico
 function handleRegister() {
     const u = document.getElementById('reg-user').value;
     const p = document.getElementById('reg-pass').value;
@@ -94,6 +93,7 @@ function finishRegAnimation() {
      toggleFlip(); 
 }
 
+// Fallback de Login Clásico
 function handleLogin() {
     const u = document.getElementById('log-user').value;
     const p = document.getElementById('log-pass').value;
@@ -107,7 +107,7 @@ function handleLogin() {
     if(u && p && storedPass === p) {
         state.user = storedName; 
         document.getElementById('sec-login').classList.add('hidden');
-        document.getElementById('sec-intro').classList.remove('hidden');
+        document.getElementById('sec-lobby').classList.remove('hidden');
         document.getElementById('user-display').innerText = storedName;
         const localWallet = JSON.parse(localStorage.getItem('rp_wallet'));
         if(localWallet) state.wallet = localWallet;
@@ -126,11 +126,9 @@ function nextIntroSlide() {
 
 /* --- NAVEGACION CERO LAG --- */
 function navTo(screen) {
-    // Ocultar todas las secciones
     document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
     
-    // Mostrar la sección correcta
     if(screen === 'lobby') {
         document.getElementById('sec-lobby').classList.remove('hidden');
         updateDashboard(); updateWalletUI(); checkBalanceHealth();
@@ -151,7 +149,6 @@ function navTo(screen) {
         document.getElementById('sec-settings').classList.remove('hidden');
     }
     
-    // REPARACIÓN DE LAG: Busca y pinta el botón exacto con data-target
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.querySelectorAll(`.nav-item[data-target="${screen}"]`).forEach(el => el.classList.add('active'));
 }
@@ -173,10 +170,9 @@ function checkBalanceHealth() {
         htmlMsg = `¡URGENTE ${state.user}! 🚨<br>Quedan menos de L.100 en banco. Recarga YA.`;
         face.innerHTML = '<i class="fas fa-dizzy"></i>';
         
-        // Ejecutar audio
         const audioAlerta = document.getElementById('urgent-audio');
         if(audioAlerta && state.audioUnlocked) {
-            audioAlerta.play().catch(e => console.log("Audio pausado por el navegador"));
+            audioAlerta.play().catch(e => console.log("Audio en espera"));
         }
     } else if (bal <= 500) {
         mascot.classList.add('mascot-warning');
@@ -217,7 +213,7 @@ function showSyncToast() {
 }
 
 /* --- WALLET & DEPOSIT --- */
-function updateWalletUI() {
+window.updateWalletUI = function() {
     document.getElementById('wallet-cash').innerText = `L.${state.wallet.cash}`;
     document.getElementById('wallet-bank').innerText = `L.${state.wallet.bank}`;
     localStorage.setItem('rp_wallet', JSON.stringify(state.wallet));
@@ -237,7 +233,7 @@ function confirmDeposit() {
     if(animContainer) animContainer.classList.remove('hidden');
     
     state.wallet.bank += amt;
-    updateWalletUI();
+    window.updateWalletUI();
 
     if(window.saveDepositToFirebase) window.saveDepositToFirebase();
     
@@ -373,7 +369,7 @@ function finalizeSale() {
     state.wallet.bank -= state.tempSale.costo; 
     state.wallet.cash += parseInt(state.tempSale.monto); 
     
-    updateWalletUI();
+    window.updateWalletUI();
     checkBalanceHealth();
 
     // 1. Guardado Forzado Firebase
@@ -387,7 +383,6 @@ function finalizeSale() {
 
     // 2. Guardado Forzado PostgreSQL (Se manda en segundo plano optimizado)
     try {
-        // Usa la URL de Render si ya la tienes activa, o usa localhost si estás en la PC
         fetch('http://127.0.0.1:10000/sales/new', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -407,7 +402,7 @@ function finalizeSale() {
                 esSuper: state.tempSale.esSuper,
                 expireTimestamp: state.tempSale.expireTimestamp || null
             })
-        }).catch(e => console.log("Sincronización API PostgreSQL en espera"));
+        }).catch(e => console.log("PostgreSQL Sincronizando..."));
     } catch(err) {}
 
     closeModal();
@@ -421,8 +416,8 @@ function finalizeSale() {
     document.getElementById('modal-success').classList.remove('hidden');
 }
 
-/* --- DASHBOARD ANTIFALLOS --- */
-function updateDashboard() {
+/* --- DASHBOARD Y ADMIN --- */
+window.updateDashboard = function() {
     let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
     let history = rawHistory.filter(h => h && h.monto !== undefined);
     
@@ -446,7 +441,6 @@ function updateDashboard() {
     document.getElementById('stat-total').innerText = `L.${vTotal}`;
 }
 
-/* --- ADMIN REPORT --- */
 function sendAdminReport() {
     let rawHistory = JSON.parse(localStorage.getItem('rp_history')) || [];
     let history = rawHistory.filter(h => h && h.date);
@@ -568,7 +562,6 @@ function renderCustomers() {
         card.className = 'customer-card';
         let statusHtml = ''; let upsellHtml = '';
         
-        // --- 1. LÓGICA DE VENCIMIENTO 24 HORAS ---
         if(client.latestSuper) {
             const timeDiff = client.latestSuper.expireTimestamp - now;
             const hoursLeft = timeDiff / (1000 * 60 * 60);
@@ -579,11 +572,9 @@ function renderCustomers() {
                 statusHtml = `<div class="status-badge status-expired"><i class="fas fa-times-circle"></i> Recarga Vencida</div>`;
                 statusHtml += `<button class="btn-sm btn-wa-remind" onclick="window.open('https://wa.me/504${client.phone}?text=${encodeURIComponent(waMsg)}', '_blank')"><i class="fab fa-whatsapp"></i> Avisar para Renovar</button>`;
             } else if (hoursLeft <= 24) {
-                // Faltan 24h o menos: APARECE EL BOTÓN
                 statusHtml = `<div class="status-badge status-warning"><i class="fas fa-exclamation-triangle"></i> Vence en ${Math.ceil(hoursLeft)}h</div>`;
                 statusHtml += `<button class="btn-sm btn-wa-remind" onclick="window.open('https://wa.me/504${client.phone}?text=${encodeURIComponent(waMsg)}', '_blank')"><i class="fab fa-whatsapp"></i> Avisar para Renovar</button>`;
             } else {
-                // Faltan más de 24h: SE OCULTA EL BOTÓN Y SE MUESTRA EL MENSAJE
                 statusHtml = `<div class="status-badge status-active"><i class="fas fa-check-circle"></i> Activa (${Math.ceil(hoursLeft/24)} días rest)</div>`;
                 statusHtml += `<div style="font-size:0.75rem; color:#888; margin-top:5px; padding-left:5px; border-left: 2px solid var(--primary);">Aquí se mostrará el botón para avisar al cliente cuando falten 24 horas o menos para vencer.</div>`;
             }
@@ -591,7 +582,6 @@ function renderCustomers() {
             statusHtml = `<span style="font-size:0.8rem; color:#888;">Cliente de recargas normales (sin vencimiento).</span>`;
         }
 
-        // --- 2. ALGORITMO DE UPSELL ---
         const oneDayPurchases = client.purchases.filter(p => p.prod.includes('1 Día'));
         if(oneDayPurchases.length >= 2) {
             upsellHtml = `
@@ -699,7 +689,6 @@ function initParticles() {
    🚀 MOTOR DE OPTIMIZACIÓN EXTREMA (ANTI-LAG Y RAM)
 ========================================================= */
 (function initOptimizer() {
-    // 1. Ahorro de Batería y RAM: Congela las partículas si la app no está en pantalla
     window.isAppActive = true;
     document.addEventListener("visibilitychange", () => {
         window.isAppActive = !document.hidden;
@@ -708,22 +697,18 @@ function initParticles() {
     const originalRequestAnimationFrame = window.requestAnimationFrame;
     window.requestAnimationFrame = function(callback) {
         if (!window.isAppActive) {
-            // Si el usuario minimiza la app, pausamos los gráficos
             setTimeout(() => window.requestAnimationFrame(callback), 1000);
             return;
         }
         return originalRequestAnimationFrame(callback);
     };
 
-    // 2. Anti-Lag al escribir: Optimiza los inputs de búsqueda
     setTimeout(() => {
         const inputs = document.querySelectorAll('input');
         inputs.forEach(input => {
             input.setAttribute('autocomplete', 'off');
             input.setAttribute('spellcheck', 'false');
-            input.style.transform = "translateZ(0)"; // Acelera el teclado virtual
+            input.style.transform = "translateZ(0)"; 
         });
     }, 1000);
-
-    console.log("🚀 Motor de Optimización PRO activado exitosamente.");
 })();
