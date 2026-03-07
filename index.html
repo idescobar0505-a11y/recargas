@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rapi Recargas ULTRA - Cloud PRO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/frontend/css/style.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+
+    <canvas id="particles-js"></canvas>
+
+    <div class="top-icons">
+        <div class="icon-btn theme-switch" onclick="toggleTheme()">
+            <i class="fas fa-moon" id="theme-icon"></i>
+        </div>
+        <div class="icon-btn" onclick="navTo('help')">
+            <i class="fas fa-question"></i>
+        </div>
+    </div>
+
+    <section id="sec-login">
+        <div id="login-section">
+            <div class="flip-container" id="login-flipper">
+                
+                <div class="glass-panel">
+                    <div class="logo-3d"><i class="fas fa-bolt"></i></div>
+                    <h2 style="margin-bottom: 20px;">Rapi Recargas</h2>
+                    
+                    <button class="btn-mega btn-google" onclick="loginWithGoogle()" style="margin-bottom:20px;">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+                        INICIAR CON GOOGLE
+                    </button>
+
+                    <div style="display:flex; align-items:center; margin:10px 0; opacity:0.6; width:100%;">
+                        <div style="flex:1; height:1px; background:var(--text);"></div>
+                        <span style="padding:0 10px; font-size:0.8rem;">O clásico</span>
+                        <div style="flex:1; height:1px; background:var(--text);"></div>
+                    </div>
+
+                    <div class="input-floating" id="grp-log-user">
+                        <input type="text" id="log-user" placeholder="Usuario">
+                    </div>
+                    <div class="input-floating" id="grp-log-pass">
+                        <input type="password" id="log-pass" placeholder="Contraseña">
+                    </div>
+                    <button class="btn-mega" onclick="handleLogin()">INICIAR SESIÓN</button>
+                    <div class="switch-link" onclick="toggleFlip()">¿No tienes cuenta? Regístrate</div>
+                    <div style="margin-top: 20px; font-size: 0.8rem; opacity: 0.7;">
+                        <i class="fas fa-lock"></i> Datos Encriptados por Firebase
+                    </div>
+                </div>
+
+                <div class="glass-panel back">
+                    <div class="logo-3d"><i class="fas fa-user-plus"></i></div>
+                    <h2 style="margin-bottom: 20px;">Crear Cuenta</h2>
+                    
+                    <button class="btn-mega btn-google" onclick="loginWithGoogle()" style="margin-bottom:15px;">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+                        REGISTRO GOOGLE
+                    </button>
+
+                    <div class="input-floating">
+                        <input type="text" id="reg-name" placeholder="Nombre y Apellido">
+                    </div>
+
+                    <div class="input-floating">
+                        <input type="text" id="reg-user" placeholder="Crear Usuario">
+                    </div>
+                    <div class="input-floating">
+                        <input type="password" id="reg-pass" placeholder="Crear Contraseña">
+                    </div>
+                    <button class="btn-mega" onclick="handleRegister()" style="background: linear-gradient(135deg, #00C851 0%, #007E33 100%);">REGISTRARME</button>
+                    <div class="switch-link" onclick="toggleFlip()">Volver al Login</div>
+                    
+                    <div id="reg-success-overlay" class="reg-success-overlay hidden">
+                        <div style="animation: bounceIn 0.8s var(--ease-elastic);">
+                            <i class="fas fa-check-circle fa-4x" style="color: var(--success); margin-bottom:20px; filter: drop-shadow(0 5px 10px rgba(0,200,81,0.3));"></i>
+                        </div>
+                        <h2 style="color:var(--success)">¡Cuenta Creada!</h2>
+                        <p style="margin: 10px 0;">Tus datos están seguros.</p>
+                        <button onclick="finishRegAnimation()" class="btn-mega" style="margin-top:20px; width: auto; padding: 10px 30px;">IR AL LOGIN</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section id="sec-intro" class="hidden" style="height:100vh; display:flex; align-items:center; justify-content:center;">
+        <div class="intro-card">
+            <i class="fas fa-shield-alt fa-3x" style="color:var(--primary); margin-bottom:20px;"></i>
+            <h3>Datos En la Nube</h3>
+            <p style="margin: 20px 0; color:var(--text-light);">Tus ventas y saldo ahora están encriptados y guardados en nuestra plataforma segura. Accede desde cualquier lugar.</p>
+            <button class="btn-mega" onclick="nextIntroSlide()">CONTINUAR</button>
+        </div>
+    </section>
+
+    <section id="sec-welcome" class="hidden" style="height:100vh; display:flex; align-items:center; justify-content:center;">
+        <div class="intro-card">
+            <div class="logo-3d"><i class="fas fa-rocket"></i></div>
+            <h3>¡Bienvenido a Rapi Recargas!</h3>
+            <p style="margin: 20px 0; color:var(--text-light);">Todo listo para vender. Usa el botón de WhatsApp si necesitas soporte directo.</p>
+            <button class="btn-mega" onclick="navTo('lobby')">ENTRAR AL SISTEMA</button>
+        </div>
+    </section>
+
+    <section id="sec-lobby" class="app-shell hidden">
+        <div class="top-bar">
+            <div class="welcome-text">
+                <h1>Hola, <br><span id="user-display">Usuario</span></h1>
+            </div>
+
+            <div class="finance-card">
+                <div class="fin-row">
+                    <div>
+                        <div class="fin-label">Dinero en Caja (Efectivo)</div>
+                        <div class="fin-value" id="wallet-cash">L.0</div>
+                    </div>
+                    <i class="fas fa-wallet fa-2x" style="opacity:0.5;"></i>
+                </div>
+                <div style="width:100%; height:1px; background:rgba(255,255,255,0.2); margin: 10px 0;"></div>
+                <div class="fin-row">
+                    <div>
+                        <div class="fin-label">Saldo Banco (Para Vender)</div>
+                        <div class="fin-value" id="wallet-bank">L.0</div>
+                    </div>
+                    <button class="btn-deposit" onclick="openDepositModal()">+ DEPOSITO</button>
+                </div>
+            </div>
+            
+            <div class="stats-scroller">
+                <div class="stat-box">
+                    <h3 id="stat-today">L.0</h3>
+                    <p>Ganancia Hoy</p>
+                </div>
+                <div class="stat-box">
+                    <h3 id="stat-month">L.0</h3>
+                    <p>Ganancia Mes</p>
+                </div>
+                <div class="stat-box">
+                    <h3 id="stat-total">L.0</h3>
+                    <p>Total Ventas</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="ops-container">
+            <button class="op-btn-pro" onclick="openSales('Tigo')">
+                <img src="https://i.ibb.co/4w5JPJfq/square-tigo.png" alt="Tigo">
+                <div class="op-overlay op-tigo-overlay"></div>
+                <span>TIGO</span>
+            </button>
+            <button class="op-btn-pro" onclick="openSales('Claro')">
+                <img src="https://i.ibb.co/gMQSc6yg/dplnews-claro-mc100222.jpg" alt="Claro">
+                <div class="op-overlay op-claro-overlay"></div>
+                <span>CLARO</span>
+            </button>
+            
+            <button class="btn-admin-pro" onclick="sendAdminReport()">
+                <i class="fab fa-whatsapp fa-2x"></i>
+                <span>ENVIAR CIERRE DEL DÍA</span>
+            </button>
+            
+            <button class="btn-logout-pro" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> CERRAR SESIÓN
+            </button>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
+            <div class="nav-item" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
+            <div class="nav-item" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
+            <div class="nav-item" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+        </div>
+    </section>
+
+    <section id="sec-help" class="app-shell hidden">
+        <div class="top-bar">
+            <button onclick="navTo('lobby')" style="background:none; border:none; font-size:1.5rem; color:var(--text);"><i class="fas fa-arrow-left"></i></button>
+            <h2 style="margin-top:10px;">Centro de Ayuda</h2>
+        </div>
+        <div class="help-content">
+            <div class="help-item">
+                <h4><i class="fas fa-book"></i> ¿Cómo recargar saldo?</h4>
+                <p style="font-size:0.9rem; color:var(--text-light);">Para vender, necesitas saldo en tu banco. Ve al Lobby y presiona "+ DEPOSITO" para registrar un ingreso de capital.</p>
+            </div>
+            <div class="help-item">
+                <h4><i class="fas fa-exclamation-triangle"></i> Reportar Fallo</h4>
+                <p style="font-size:0.9rem; color:var(--text-light);">Si el sistema falla, contacta a soporte técnico inmediatamente.</p>
+                <button class="btn-mega" style="margin-top:10px; font-size:0.9rem;" onclick="window.open('https://wa.me/50493655523')">Contactar Soporte</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="sec-sales" class="app-shell hidden">
+        <div class="top-bar" style="background: var(--bg);">
+            <button onclick="navTo('lobby')" style="background:none; border:none; font-size:1.5rem; color:var(--text);"><i class="fas fa-arrow-left"></i></button>
+            <h2 id="sale-op-title" style="margin-top:10px;">Venta</h2>
+        </div>
+        <div style="padding: 20px; overflow-y:auto; padding-bottom:100px;">
+            <div class="input-floating" id="phone-input-container">
+                <input type="tel" id="sale-phone" placeholder="Número del Cliente (8 dígitos)" maxlength="8" style="text-align:center; font-size:1.5rem; letter-spacing:2px; font-weight:bold;">
+            </div>
+            <div class="input-floating" style="margin-bottom: 25px;">
+                <input type="text" id="sale-name" placeholder="Nombre del Cliente (Opcional)" style="text-align:center; font-size:1rem;">
+            </div>
+
+            <h4 style="margin-bottom:15px; color:var(--text-light);">Selecciona Monto</h4>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;" id="packages-grid">
+            </div>
+        </div>
+    </section>
+
+    <section id="sec-customers" class="app-shell hidden">
+        <div class="top-bar">
+            <h2>Cartera de Clientes</h2>
+            <p style="font-size:0.8rem; color:var(--text-light);">Seguimiento de Super Recargas y Vencimientos.</p>
+            <input type="text" id="filter-customer" class="search-input" placeholder="Buscar por nombre o número..." onkeyup="renderCustomers()" style="width:100%; margin-top: 15px;">
+        </div>
+        <div id="customers-list" style="padding: 20px; padding-bottom: 100px; overflow-y: auto;">
+            </div>
+        <div class="bottom-nav">
+            <div class="nav-item" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
+            <div class="nav-item active" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
+            <div class="nav-item" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
+            <div class="nav-item" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+        </div>
+    </section>
+
+    <section id="sec-analytics" class="app-shell hidden">
+        <div class="top-bar">
+            <h2>Algoritmo de Ventas</h2>
+            <p style="font-size:0.8rem; color:var(--text-light);">Análisis predictivo de tu negocio.</p>
+        </div>
+        <div style="padding: 20px; padding-bottom: 100px; overflow-y: auto;">
+            <div id="analytics-content">
+                </div>
+
+            <div class="academy-card" style="margin-top:20px;">
+                <h3><i class="fas fa-graduation-cap"></i> Academia de Ventas PRO</h3>
+                <ul>
+                    <li><strong>La regla de oro:</strong> Un cliente que recarga sin que se le corte la señal, es un cliente de por vida. Usa la pestaña "Clientes" para avisarles 1 día antes.</li>
+                    <li><strong>El Upsell:</strong> Si notas que compran recargas de 1 Día muy seguido, ofréceles la de 3 o 7 Días. Diles: <i>"Amigo, gastas L.45 diario, con la de 3 días ahorras dinero"</i>. Ganarás confianza.</li>
+                    <li><strong>Cercanía:</strong> Guarda sus nombres. Cuando regresen diles: "Hola Juan, ¿lo de siempre?". Eso automatiza el cerebro del cliente para no ir a otra pulpería.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="bottom-nav">
+            <div class="nav-item" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
+            <div class="nav-item" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
+            <div class="nav-item active" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
+            <div class="nav-item" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+        </div>
+    </section>
+
+    <section id="sec-history" class="app-shell hidden">
+        <div class="top-bar">
+            <h2>Historial de Órdenes</h2>
+            <div class="filter-bar" style="margin-top:15px; flex-wrap: wrap;">
+                <input type="date" id="filter-date" class="date-input" onchange="renderHistory()" title="Buscar por día">
+                <input type="month" id="filter-month" class="date-input" onchange="renderHistory()" title="Buscar por mes">
+                <button class="btn-mega" style="flex:1; padding:10px; font-size:0.8rem; background: #e53935;" onclick="exportHistoryPDF()">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+            </div>
+            <input type="text" id="filter-search" class="search-input" placeholder="Buscar por Orden ID o Número..." onkeyup="renderHistory()" style="width:100%; margin-top: 10px;">
+        </div>
+        <div id="history-list" style="padding: 20px; padding-bottom: 100px; overflow-y: auto;">
+        </div>
+        <div class="bottom-nav">
+            <div class="nav-item" onclick="navTo('lobby')"><i class="fas fa-home"></i></div>
+            <div class="nav-item" onclick="navTo('customers')"><i class="fas fa-users"></i></div>
+            <div class="nav-item" onclick="navTo('analytics')"><i class="fas fa-brain"></i></div>
+            <div class="nav-item active" onclick="navTo('history')"><i class="fas fa-history"></i></div>
+        </div>
+    </section>
+
+    <div id="modal-confirm" class="modal-overlay hidden">
+        <div class="modal-sheet">
+            <h3 style="text-align:center;">Confirmar Detalles</h3>
+            <div id="pre-voucher" class="voucher-preview"></div>
+            <button class="btn-mega" onclick="finalizeSale()">CONFIRMAR Y PROCESAR</button>
+            <button onclick="closeModal()" style="width:100%; padding:15px; margin-top:10px; background:transparent; border:none; color:var(--text-light);">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="modal-deposit" class="modal-overlay hidden">
+        <div class="modal-sheet">
+            <h3 style="text-align:center;">Ingresar Depósito</h3>
+            <p style="text-align:center; font-size:0.9rem; color:var(--text-light); margin-bottom:10px;">Agrega saldo a tu cuenta de banco para poder vender.</p>
+            <div class="modal-3d-box">
+                <input type="number" id="deposit-amount" class="custom-amt-input" placeholder="0.00">
+            </div>
+            <button class="btn-mega" onclick="confirmDeposit()">CONFIRMAR DEPOSITO</button>
+            <button onclick="document.getElementById('modal-deposit').classList.add('hidden')" style="width:100%; padding:15px; margin-top:10px; background:transparent; border:none; color:var(--text-light);">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="modal-custom" class="modal-overlay hidden">
+        <div class="modal-sheet">
+            <h3 style="text-align:center; margin-bottom:20px;">Monto Personalizado</h3>
+            <div class="modal-3d-box">
+                <input type="number" id="custom-amount-input" class="custom-amt-input" placeholder="0.00">
+            </div>
+            <button class="btn-mega" onclick="processCustomAmount()">CONTINUAR</button>
+            <button onclick="document.getElementById('modal-custom').classList.add('hidden')" style="width:100%; padding:15px; margin-top:10px; background:transparent; border:none; color:var(--text-light);">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="modal-success" class="modal-overlay hidden">
+        <div class="modal-sheet" style="text-align:center;">
+            <div class="success-checkmark">
+                <svg class="check-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                    <circle class="check-circle" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="check-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                </svg>
+            </div>
+            <h2 style="color:var(--success)">¡Transacción Exitosa!</h2>
+            <p style="margin:10px 0 20px;">La recarga ha sido enviada y guardada en la nube.</p>
+            
+            <button id="btn-wa-client" class="btn-mega" style="background: #25D366; margin-bottom:10px;">
+                <i class="fab fa-whatsapp"></i> ENVIAR VOUCHER AL CLIENTE
+            </button>
+            <button class="btn-mega" style="background: var(--text-light);" onclick="navTo('lobby'); closeModal()">
+                NUEVA VENTA
+            </button>
+        </div>
+    </div>
+
+    <div id="deposit-animation-container" class="hidden">
+        <div class="coin-3d">
+            <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="deposit-msg">¡Depósito Exitoso!</div>
+    </div>
+
+    <div id="celebration-screen" class="celebration-overlay hidden">
+        <i class="fas fa-rocket fa-5x" style="margin-bottom:30px; animation: bounce 1s infinite;"></i>
+        <div class="celebration-text">¡Gracias por Recargar!</div>
+        <div class="celebration-sub">Ahora sigamos vendiendo y haciendo plata.</div>
+        <button class="btn-deposit" style="margin-top:30px; background:white; color:#00C851; font-weight:bold; padding:15px 30px;" onclick="closeCelebration()">A VENDER</button>
+    </div>
+
+    <div id="mascot-container" class="mascot-alert hidden">
+        <div class="mascot-bubble" id="mascot-text">
+            ¡Nos quedamos sin fondos!
+            <div class="close-mascot" onclick="dismissMascot()">X</div>
+        </div>
+        <div class="mascot-avatar" id="mascot-face">
+            <i class="fas fa-robot"></i>
+        </div>
+    </div>
+
+    <audio id="urgent-audio" src="/alerta.mp3" preload="auto"></audio>
+
+    <script src="/frontend/js/firebase-config.js"></script>
+    <script src="/frontend/js/app.js"></script>
+
+</body>
+</html>
