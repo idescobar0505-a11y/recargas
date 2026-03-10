@@ -322,9 +322,22 @@ function openSales(op) {
     PRECIOS[op].forEach(p => {
         const btn = document.createElement('button');
         btn.className = 'btn-mega';
-        btn.style.fontSize = '0.9rem'; btn.style.background = 'var(--card-bg)';
-        btn.style.color = 'var(--text)'; btn.style.border = '1px solid var(--primary)';
-        btn.innerHTML = `<div>${p.n}</div><div style="color:var(--primary); font-size:1.2rem;">L.${p.v}</div>`;
+        
+        // NUEVOS ESTILOS: Apilamos en columna y ajustamos espacios
+        btn.style.flexDirection = 'column'; 
+        btn.style.padding = '10px 5px'; 
+        btn.style.fontSize = '0.8rem'; 
+        btn.style.textAlign = 'center';
+        btn.style.background = 'var(--card-bg)';
+        btn.style.color = 'var(--text)'; 
+        btn.style.border = '1px solid var(--primary)';
+        
+        // El div del nombre ahora permite saltos de línea sin cortarse
+        btn.innerHTML = `
+            <div style="width: 100%; word-break: break-word; line-height: 1.2; margin-bottom: 5px;">${p.n}</div>
+            <div style="color:var(--primary); font-size:1.1rem; font-weight: 900;">L.${p.v}</div>
+        `;
+        
         btn.onclick = () => prepareSale(op, p);
         grid.appendChild(btn);
     });
