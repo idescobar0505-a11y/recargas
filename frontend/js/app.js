@@ -11,9 +11,9 @@ const PRECIOS = {
     'Claro': [
         {n:'Super 1 Día', b:36, v:45}, {n:'Super 3 Días', b:67, v:75},
         {n:'Super 7 Días', b:125, v:135}, {n:'Super 10 Días', b:165, v:175}, {n:'Super 15 Días', b:235, v:255},
-        {n:'Super ilimitado intrenet 2 Días', b:60, v:65}, {n:'Super 1 dia ilimitado internet', b:32, v:37}, {n:'Super 3 Horas ilimitado', b:15, v:20},
-        {n:'Recarga 25', b:24, v:25}, {n:'Recarga 30', b:30, v:35}, {n:'Recarga 35', b:35, v:40},
-        {n:'Recarga 40', b:39, v:40}, {n:'Recarga 50', b:50, v:60}
+        {n:'Super ilimitado intrenet 2 Días', b:60, v:65}, {n:'Super 1 dia ilimitado internet', b:32, v:37}, {n:'Super 3 Horas', b:15, v:20},
+        {n:'Recarga 25', b:25, v:30}, {n:'Recarga 30', b:30, v:35}, {n:'Recarga 35', b:35, v:40},
+        {n:'Recarga 40', b:40, v:45}, {n:'Recarga 50', b:50, v:60}
     ]
 };
 
